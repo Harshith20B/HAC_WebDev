@@ -33,7 +33,7 @@ function App() {
       <nav className="bg-blue-600 p-4 text-white">
         <div className="container mx-auto flex justify-between items-center">
           <div className="text-xl font-bold">
-            <Link to="/">E-commerce</Link>
+            <Link to="/">Tourify</Link>
           </div>
           <div>
             {isLoggedIn ? (
@@ -70,8 +70,8 @@ function App() {
             path="/"
             element={
               <div>
-                <h1 className="text-3xl font-semibold mt-4">Welcome to Our E-commerce Site</h1>
-                <p className="mt-2 text-gray-700">Explore our collection of amazing products!</p>
+                <h1 className="text-3xl font-semibold mt-4">Welcome to Our Tourify</h1>
+                <p className="mt-2 text-gray-700">Explore Places!</p>
               </div>
             }
           />
