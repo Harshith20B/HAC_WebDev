@@ -1,18 +1,21 @@
+// src/App.js
+
 import React, { useState, useEffect } from 'react';
 import { Route, Routes, Link, useNavigate } from 'react-router-dom';
 import Signup from './pages/Signup';
 import Login from './pages/Login';
 import VerifyOtp from './pages/VerifyOtp';
+import HomePage from './pages/HomePage';
+import SearchResultsPage from './pages/SearchResultsPage';
 import axios from 'axios';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const navigate = useNavigate();
 
-  // Check login status on component mount
   useEffect(() => {
     const token = localStorage.getItem('token');
-    setIsLoggedIn(!!token); // If a token exists, set user as logged in
+    setIsLoggedIn(!!token);
   }, []);
 
   const handleLogout = async () => {
@@ -45,16 +48,10 @@ function App() {
               </button>
             ) : (
               <>
-                <Link
-                  to="/signup"
-                  className="bg-white text-blue-600 px-4 py-2 rounded mr-2 hover:bg-blue-100"
-                >
+                <Link to="/signup" className="bg-white text-blue-600 px-4 py-2 rounded mr-2 hover:bg-blue-100">
                   Sign Up
                 </Link>
-                <Link
-                  to="/login"
-                  className="bg-white text-blue-600 px-4 py-2 rounded hover:bg-blue-100"
-                >
+                <Link to="/login" className="bg-white text-blue-600 px-4 py-2 rounded hover:bg-blue-100">
                   Login
                 </Link>
               </>
@@ -66,15 +63,8 @@ function App() {
       {/* Main Content */}
       <main className="container mx-auto p-4 text-center">
         <Routes>
-          <Route
-            path="/"
-            element={
-              <div>
-                <h1 className="text-3xl font-semibold mt-4">Welcome to Our Tourify</h1>
-                <p className="mt-2 text-gray-700">Explore Places!</p>
-              </div>
-            }
-          />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/search-results" element={<SearchResultsPage />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login setIsLoggedIn={setIsLoggedIn} />} />
           <Route path="/verify-otp" element={<VerifyOtp />} />
