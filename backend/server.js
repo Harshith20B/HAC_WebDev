@@ -2,7 +2,10 @@ const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const cors = require('cors');
-const authRoutes = require('./routes/authRoutes'); // Correct import
+const authRoutes = require('./routes/authRoutes');
+const landmarkRoutes = require('./routes/landmarkRoutes');
+const exploreRoutes = require('./routes/exploreRoutes');
+
 require('dotenv').config();
 const app = express();
 
@@ -19,7 +22,8 @@ app.use(
     cookie: { secure: false } // set to true if using https
   })
 );
-
+app.use('/api/explore', exploreRoutes);
+app.use('/api/landmarks', landmarkRoutes);
 app.use('/api/auth', authRoutes);  // Use the routes for authentication
 console.log(process.env.EMAIL_USER, process.env.EMAIL_PASS);  // Log the credentials
 const PORT = process.env.PORT || 5000;
