@@ -69,7 +69,6 @@ function SearchResultsPage() {
       </div>
     </div>
   );
-  
 }
 
 export default SearchResultsPage;
