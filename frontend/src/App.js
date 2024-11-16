@@ -41,7 +41,7 @@ function App() {
         });
       }
     }
-  }, [notificationShown]); // Runs only once when notificationShown is false  
+  }, [notificationShown]); // Runs only once when notificationShown is false 
 
   const handleLogout = async () => {
     try {
@@ -56,9 +56,9 @@ function App() {
   };
 
   return (
-    <div>
+    <div className="flex flex-col min-h-screen">
       {/* Navbar */}
-      <nav className="bg-gray-900 p-4 text-white">
+      <nav className="bg-gray-900 p-4 text-white w-full">
         <div className="container mx-auto flex justify-between items-center">
           <div className="text-xl font-bold">
             <Link to="/">Tourify</Link>
@@ -119,7 +119,7 @@ function App() {
       </nav>
 
       {/* Main Content */}
-      <main className="container mx-auto p-4 text-center">
+      <main className="flex-grow">
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/search-results" element={<SearchResultsPage />} />
@@ -129,7 +129,7 @@ function App() {
           <Route path="/shops" element={<Shops />} />
           <Route path="/packages" element={<Packages />} />
           <Route path="/connect" element={<Connect />} />
-          <Route path="/landmark-details/:landmarkId" element={<LandmarkDetails />} /> {/* Add this route */}
+          <Route path="/landmark-details/:landmarkId" element={<LandmarkDetails />} />
         </Routes>
       </main>
     </div>
