@@ -9,7 +9,7 @@ import HomePage from './pages/HomePage';
 import SearchResultsPage from './pages/SearchResultsPage';
 import Shops from './pages/ShopPage';
 import Packages from './pages/PackagesPage';
-import Reviews from './pages/Reviews';
+import Connect from './pages/Connect';
 import LandmarkDetails from './pages/LandmarkDetails'; // Import LandmarkDetails
 import axios from 'axios';
 
@@ -54,7 +54,7 @@ function App() {
           <div className="hidden lg:flex space-x-4">
             <Link to="/shops" className="hover:bg-gray-700 px-4 py-2 rounded">Shops</Link>
             <Link to="/packages" className="hover:bg-gray-700 px-4 py-2 rounded">Packages</Link>
-            <Link to="/reviews" className="hover:bg-gray-700 px-4 py-2 rounded">Reviews</Link>
+            <Link to="/connect" className="hover:bg-gray-700 px-4 py-2 rounded">Connect</Link>
             {isLoggedIn ? (
               <button
                 onClick={handleLogout}
@@ -80,7 +80,7 @@ function App() {
             <Link to="/" className="block text-white py-2">Home</Link>
             <Link to="/shops" className="block text-white py-2">Shops</Link>
             <Link to="/packages" className="block text-white py-2">Packages</Link>
-            <Link to="/reviews" className="block text-white py-2">Reviews</Link>
+            <Link to="/connect" className="block text-white py-2">Connect</Link>
             {isLoggedIn ? (
               <button
                 onClick={handleLogout}
@@ -108,7 +108,7 @@ function App() {
           <Route path="/verify-otp" element={<VerifyOtp />} />
           <Route path="/shops" element={<Shops />} />
           <Route path="/packages" element={<Packages />} />
-          <Route path="/reviews" element={<Reviews />} />
+          <Route path="/connect" element={<Connect />} />
           <Route path="/landmark-details/:landmarkId" element={<LandmarkDetails />} /> {/* Add this route */}
         </Routes>
       </main>

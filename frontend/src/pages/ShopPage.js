@@ -35,13 +35,15 @@ function ShopPage() {
             <p className="text-lg font-bold">${product.price}</p>
             <p className="text-sm text-gray-600">Category: {product.category}</p>
             <p className="text-sm text-gray-600">Stock: {product.stock}</p>
-            <div className="mt-4 flex justify-between">
-              <a href={product.externalLinks.amazon} className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-400" target="_blank" rel="noopener noreferrer">
-                Buy on Amazon
-              </a>
-              <a href={product.externalLinks.flipkart} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-400" target="_blank" rel="noopener noreferrer">
-                Buy on Flipkart
-              </a>
+            <div className="mt-4">
+                <a
+                    href={product.externalLink}  // Changed from product.externalLinks to product.externalLink
+                    className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-400"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    Buy Now
+                </a>
             </div>
           </div>
         ))}
