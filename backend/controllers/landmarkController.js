@@ -1,7 +1,6 @@
 // controllers/landmarkController.js
 
 const Landmark = require('../models/Landmark');
-const axios = require('axios');
 
 // Function to get most visited landmarks
 const getMostVisitedLandmarks = async (req, res) => {
@@ -14,33 +13,25 @@ const getMostVisitedLandmarks = async (req, res) => {
   }
 };
 
-// Function to increment visits count
-// const incrementVisits = async (req, res) => {
-//   const { id } = req.params;
-//   try {
-//     const landmark = await Landmark.findByIdAndUpdate(
-//       id,
-//       { $inc: { visits: 1 } }, // Increment visits by 1
-//       { new: true }
-//     );
-//     if (!landmark) {
-//       return res.status(404).json({ message: 'Landmark not found' });
-//     }
-//     res.json(landmark);
-//   } catch (error) {
-//     console.error("Error incrementing visits:", error);
-//     res.status(500).json({ message: 'Error incrementing visits' });
-//   }
-// };
-// const handleBookNow = async (landmarkId) => {
-//   try {
-//     await axios.post(`http://localhost:5000/api/landmarks/${landmarkId}/visit`);
-//   } catch (error) {
-//     console.error("Error incrementing visits:", error);
-//   }
-// };
+// Function to get details of a specific landmark by ID
+const getLandmarkDetails = async (req, res) => {
+  const { id } = req.params;  // Extract the landmark ID from the request parameters
 
-// // Call this function in the booking action in the LandmarkCard component or elsewhere
-// handleBookNow(landmark._id);
-module.exports = { getMostVisitedLandmarks};
+  try {
+    // Fetch the landmark by its ID
+    const landmark = await Landmark.findById(id);
 
+    // If the landmark is not found, return a 404 error
+    if (!landmark) {
+      return res.status(404).json({ message: 'Landmark not found' });
+    }
+
+    // Return the landmark details as a JSON response
+    res.json(landmark);
+  } catch (error) {
+    console.error("Error fetching landmark details:", error);
+    res.status(500).json({ message: 'Error fetching landmark details' });
+  }
+};
+
+module.exports = { getMostVisitedLandmarks, getLandmarkDetails };

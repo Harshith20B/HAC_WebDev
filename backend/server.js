@@ -5,7 +5,7 @@ const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const landmarkRoutes = require('./routes/landmarkRoutes');
 const exploreRoutes = require('./routes/exploreRoutes');
-
+const productRoutes = require('./routes/productRoutes');
 require('dotenv').config();
 const app = express();
 
@@ -22,6 +22,7 @@ app.use(
     cookie: { secure: false } // set to true if using https
   })
 );
+app.use('/api', productRoutes);
 app.use('/api/explore', exploreRoutes);
 app.use('/api/landmarks', landmarkRoutes);
 app.use('/api/auth', authRoutes);  // Use the routes for authentication

@@ -7,7 +7,7 @@ const landmarkController = require('../controllers/landmarkController');
 // Route to get most visited landmarks
 router.get('/', landmarkController.getMostVisitedLandmarks);
 
-// Route to increment visits for a landmark
-//router.post('/:id/visit', landmarkController.incrementVisits);
+// Route to get landmark details by ID
+router.get('/:id', landmarkController.getLandmarkDetails); // New route to fetch landmark details
 
 module.exports = router;

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { searchLandmarks } = require('../controllers/exploreController');
+const { getLandmarksWithImages} = require('../controllers/exploreController');
 
-router.get('/search', searchLandmarks);
+router.get('/search', getLandmarksWithImages);
 
 module.exports = router;

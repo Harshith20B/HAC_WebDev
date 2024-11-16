@@ -10,10 +10,14 @@ import background1 from '../images/background1.jpg';
 import background2 from '../images/background2.jpg';
 import background3 from '../images/background3.jpg';
 
+// Import FontAwesome location icon
+import { FaLocationArrow } from 'react-icons/fa';
+
 function HomePage() {
   const [location, setLocation] = useState('');
   const [radius, setRadius] = useState('');
   const [landmarks, setLandmarks] = useState([]);
+  const [userLocation, setUserLocation] = useState(null); // To store user's geolocation
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -29,6 +33,25 @@ function HomePage() {
     fetchLandmarks();
   }, []);
 
+  // Function to get the user's current location using the browser's geolocation API
+  const getUserLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation({ lat: latitude, lon: longitude });
+          setLocation(`${latitude}, ${longitude}`); // Optionally, format the location as a string
+        },
+        (error) => {
+          console.error("Error getting user location:", error);
+          alert("Could not retrieve your location. Please enter it manually.");
+        }
+      );
+    } else {
+      alert("Geolocation is not supported by this browser.");
+    }
+  };
+
   const handleSearch = (e) => {
     e.preventDefault();
     navigate(`/search-results?location=${location}&radius=${radius}`);
@@ -37,36 +60,42 @@ function HomePage() {
   return (
     <div>
       {/* Carousel with Search Overlay */}
-      <div className="relative max-w-screen-lg mx-auto mt-4">
+      <div className="relative w-full h-screen">
         <Carousel
           autoPlay
           infiniteLoop
           interval={5000}
           showThumbs={false}
           showStatus={false}
-          className="rounded-lg overflow-hidden"
+          className="w-full h-full"
         >
-          <div>
-            <img src={background1} alt="Scenic View 1" />
-            <p className="legend">Explore Mountains</p>
+          <div className="relative w-full h-full">
+            <img src={background1} alt="Scenic View 1" className="w-full h-full object-cover" />
+            <div className="absolute bottom-0 left-0 w-full bg-black bg-opacity-50 py-4 text-center">
+              <p className="text-white text-xl font-bold">Explore Mountains</p>
+            </div>
           </div>
-          <div>
-            <img src={background2} alt="Scenic View 2" />
-            <p className="legend">Discover Cities</p>
+          <div className="relative w-full h-full">
+            <img src={background2} alt="Scenic View 2" className="w-full h-full object-cover" />
+            <div className="absolute bottom-0 left-0 w-full bg-black bg-opacity-50 py-4 text-center">
+              <p className="text-white text-xl font-bold">Discover Cities</p>
+            </div>
           </div>
-          <div>
-            <img src={background3} alt="Scenic View 3" />
-            <p className="legend">Relax at Beaches</p>
+          <div className="relative w-full h-full">
+            <img src={background3} alt="Scenic View 3" className="w-full h-full object-cover" />
+            <div className="absolute bottom-0 left-0 w-full bg-black bg-opacity-50 py-4 text-center">
+              <p className="text-white text-xl font-bold">Relax at Beaches</p>
+            </div>
           </div>
         </Carousel>
 
         {/* Search Form Overlay */}
-        <form 
-          onSubmit={handleSearch} 
-          className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-50 p-4 rounded-lg"
+        <form
+          onSubmit={handleSearch}
+          className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-60 p-4 rounded-lg"
         >
-          <h2 className="text-white text-xl font-bold mb-4">Find Landmarks Nearby</h2>
-          <div className="flex flex-col sm:flex-row items-center w-full max-w-md space-y-2 sm:space-y-0 sm:space-x-2">
+          <h2 className="text-white text-2xl font-bold mb-6">Find Landmarks Nearby</h2>
+          <div className="flex flex-col sm:flex-row items-center w-full max-w-lg space-y-4 sm:space-y-0 sm:space-x-4">
             <input
               type="text"
               placeholder="Enter location"
@@ -88,12 +117,23 @@ function HomePage() {
               Search
             </button>
           </div>
+
+          {/* Button to get user's current location */}
+          <button
+            type="button"
+            onClick={getUserLocation}
+            className="mt-4 px-4 py-2 bg-black text-white rounded-lg flex items-center justify-center hover:bg-gray-800"
+            title="Use My Current Location"
+          >
+            <FaLocationArrow className="mr-2 text-xl" />
+            Use My Location
+          </button>
         </form>
       </div>
 
       {/* Most Visited Landmarks Section */}
       <div className="mt-8 container mx-auto px-4">
-        <h2 className="text-2xl font-bold mb-4 text-center">Most Visited Landmarks</h2>
+        <h2 className="text-2xl font-bold mb-6 text-center text-white">Most Visited Landmarks</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {landmarks.map((landmark) => (
             <LandmarkCard key={landmark._id} landmark={landmark} />
@@ -102,7 +142,7 @@ function HomePage() {
       </div>
 
       {/* Footer */}
-      <footer className="bg-blue-600 text-white text-center p-6 w-full mt-8">
+      <footer className="bg-black text-white text-center p-6 w-full mt-8">
         <p className="text-sm mb-2">&copy; {new Date().getFullYear()} Tourify. All rights reserved.</p>
         <div className="flex justify-center space-x-4 text-sm">
           <a href="/about" className="hover:underline">About Us</a>
