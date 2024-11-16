@@ -1,5 +1,3 @@
-// src/App.js
-
 import React, { useState, useEffect } from 'react';
 import { Route, Routes, Link, useNavigate } from 'react-router-dom';
 import Signup from './pages/Signup';
@@ -16,12 +14,34 @@ import axios from 'axios';
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false); // For mobile menu toggle
+  const [notificationShown, setNotificationShown] = useState(false); // Track if notification has been shown
   const navigate = useNavigate();
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     setIsLoggedIn(!!token);
   }, []);
+
+  useEffect(() => {
+    // Only show the notification once (when the app first loads)
+    if (!notificationShown) {
+      if (Notification.permission === 'granted') {
+        new Notification('Welcome!', {
+          body: 'Thank you for visiting Tourify! We hope you have a great experience exploring landmarks.',
+        });
+        setNotificationShown(true); // Set notification as shown
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then((permission) => {
+          if (permission === 'granted') {
+            new Notification('Welcome!', {
+              body: 'Thank you for visiting Tourify! We hope you have a great experience exploring landmarks.',
+            });
+            setNotificationShown(true); // Set notification as shown
+          }
+        });
+      }
+    }
+  }, [notificationShown]); // Runs only once when notificationShown is false  
 
   const handleLogout = async () => {
     try {

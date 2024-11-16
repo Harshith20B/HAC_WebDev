@@ -37,6 +37,16 @@ function Connect() {
         },
       });
       fetchTravelPlans(); // Refresh the list
+
+      // Reset the form fields after adding the travel plan
+      setNewPlan({
+        user: '',
+        title: '',
+        description: '',
+        landmarks: '',
+        maxPeople: '',
+        dateRange: { start: null, end: null },
+      });
     } catch (error) {
       console.error('Error adding travel plan:', error);
     }
