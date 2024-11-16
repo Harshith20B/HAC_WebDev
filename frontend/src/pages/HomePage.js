@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Carousel } from 'react-responsive-carousel';
 import { useNavigate } from 'react-router-dom';
 import 'react-responsive-carousel/lib/styles/carousel.min.css';
-import LandmarkCard from '../components/LandmarkCard';
+import LandmarkCard1 from '../components/LandmarkCard1';
 import axios from 'axios';
 import { FaLocationArrow } from 'react-icons/fa';
 
@@ -138,7 +138,7 @@ function HomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {landmarks.length > 0 ? (
               landmarks.map((landmark) => (
-                <LandmarkCard key={landmark._id} landmark={landmark} />
+                <LandmarkCard1 key={landmark._id} landmark={landmark} />
               ))
             ) : (
               <p className="text-white text-center">Loading landmarks...</p>

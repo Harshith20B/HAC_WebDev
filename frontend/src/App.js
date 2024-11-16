@@ -9,6 +9,7 @@ import Shops from './pages/ShopPage';
 import Packages from './pages/PackagesPage';
 import Connect from './pages/Connect';
 import LandmarkDetails from './pages/LandmarkDetails'; // Import LandmarkDetails
+import DevisePlanPage from './pages/DevisePlanPage'; // Import DevisePlanPage
 import axios from 'axios';
 
 function App() {
@@ -130,6 +131,7 @@ function App() {
           <Route path="/packages" element={<Packages />} />
           <Route path="/connect" element={<Connect />} />
           <Route path="/landmark-details/:landmarkId" element={<LandmarkDetails />} />
+          <Route path="/devise-plan" element={<DevisePlanPage />} />
         </Routes>
       </main>
     </div>
