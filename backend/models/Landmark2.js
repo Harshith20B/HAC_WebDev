@@ -4,13 +4,10 @@ const mongoose = require('mongoose');
 const Landmark2Schema = new mongoose.Schema({
   name: { type: String, required: true },
   description: { type: String },
-  location: {
-    type: { type: String, default: 'Point' },
-    coordinates: [Number], // [longitude, latitude]
-  },
-  visits: { type: Number, default: 0 },
+  location: { type: String, required: true }, // Representing the city or location
+  radius: { type: Number, required: true }, // Radius in kilometers
+  imageUrl: { type: String },
 });
 
-Landmark2Schema.index({ location: '2dsphere' }); // Ensure geospatial indexing for location
-
+// Create a model from the schema
 module.exports = mongoose.model('Landmark2', Landmark2Schema);

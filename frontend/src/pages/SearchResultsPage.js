@@ -15,7 +15,7 @@ function SearchResultsPage() {
   useEffect(() => {
     const fetchLandmarks = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/explore/search`, {
+        const response = await axios.get(`http://localhost:5000/api/landmark/search2`, {
           params: { location: searchLocation, radius: searchRadius },
         });
         setLandmarks(response.data);
@@ -30,8 +30,8 @@ function SearchResultsPage() {
   const toggleSelection = (landmarkId) => {
     setSelectedLandmarks((prev) =>
       prev.includes(landmarkId)
-        ? prev.filter((id) => id !== landmarkId) // Remove if already selected
-        : [...prev, landmarkId] // Add if not selected
+        ? prev.filter((id) => id !== landmarkId)
+        : [...prev, landmarkId]
     );
   };
 

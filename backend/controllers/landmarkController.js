@@ -16,11 +16,15 @@ const searchLandmarks2 = async (req, res) => {
   const { location, radius } = req.query;
   
   try {
-    // Query for landmarks2 based on location and radius (You can customize the query here)
+    // Convert the radius to a number (in kilometers)
+    const radiusInKm = parseFloat(radius);
+
+    // Find landmarks with the specified location and radius
     const landmarks = await Landmark2.find({
-      location: { $near: { $geometry: { type: "Point", coordinates: [parseFloat(location.lon), parseFloat(location.lat)] }, $maxDistance: radius * 1000 } },
+      location: location, // Match the given location
+      radius: { $lte: radiusInKm }, // Find landmarks within the specified radius
     });
-    
+
     res.json(landmarks);
   } catch (error) {
     console.error("Error fetching landmarks:", error);

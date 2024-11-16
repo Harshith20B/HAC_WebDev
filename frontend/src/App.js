@@ -8,19 +8,23 @@ import SearchResultsPage from './pages/SearchResultsPage';
 import Shops from './pages/ShopPage';
 import Packages from './pages/PackagesPage';
 import Connect from './pages/Connect';
-import LandmarkDetails from './pages/LandmarkDetails'; // Import LandmarkDetails
-import DevisePlanPage from './pages/DevisePlanPage'; // Import DevisePlanPage
+import LandmarkDetails from './pages/LandmarkDetails';
+import DevisePlanPage from './pages/DevisePlanPage';
 import axios from 'axios';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false); // For mobile menu toggle
   const [notificationShown, setNotificationShown] = useState(false); // Track if notification has been shown
+  const [user, setUser] = useState(null); // Store user data
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false); // For the profile dropdown
   const navigate = useNavigate();
 
   useEffect(() => {
     const token = localStorage.getItem('token');
+    const storedUser = JSON.parse(localStorage.getItem('user'));
     setIsLoggedIn(!!token);
+    setUser(storedUser);
   }, []);
 
   useEffect(() => {
@@ -42,7 +46,7 @@ function App() {
         });
       }
     }
-  }, [notificationShown]); // Runs only once when notificationShown is false 
+  }, [notificationShown]);
 
   const handleLogout = async () => {
     try {
@@ -50,11 +54,14 @@ function App() {
       localStorage.removeItem('user');
       localStorage.removeItem('token');
       setIsLoggedIn(false);
+      setUser(null);
       navigate('/');
     } catch (error) {
       console.error("Logout failed:", error);
     }
   };
+
+  const toggleProfileMenu = () => setProfileMenuOpen(!profileMenuOpen);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -77,12 +84,25 @@ function App() {
             <Link to="/packages" className="hover:bg-gray-700 px-4 py-2 rounded">Packages</Link>
             <Link to="/connect" className="hover:bg-gray-700 px-4 py-2 rounded">Connect</Link>
             {isLoggedIn ? (
-              <button
-                onClick={handleLogout}
-                className="bg-white text-gray-900 px-4 py-2 rounded hover:bg-gray-300"
-              >
-                Logout
-              </button>
+              <div className="relative">
+                <button 
+                  className="flex items-center bg-gray-700 px-4 py-2 rounded"
+                  onClick={toggleProfileMenu}
+                >
+                  <span className="font-bold text-2xl">{user ? user.name[0] : ''}</span> {/* Increased size of first letter */}
+                </button>
+                {profileMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white text-gray-900 shadow-lg rounded z-50">
+                    <Link to="/profile" className="block px-4 py-2 hover:bg-gray-200">Edit Profile</Link>
+                    <button 
+                      onClick={handleLogout}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-200"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <>
                 <Link to="/signup" className="bg-white text-gray-900 px-4 py-2 rounded hover:bg-gray-300">
@@ -125,7 +145,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/search-results" element={<SearchResultsPage />} />
           <Route path="/signup" element={<Signup />} />
-          <Route path="/login" element={<Login setIsLoggedIn={setIsLoggedIn} />} />
+          <Route path="/login" element={<Login setIsLoggedIn={setIsLoggedIn} setUser={setUser} />} />
           <Route path="/verify-otp" element={<VerifyOtp />} />
           <Route path="/shops" element={<Shops />} />
           <Route path="/packages" element={<Packages />} />
