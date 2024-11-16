@@ -12,8 +12,10 @@ function Connect() {
     landmarks: '',
     maxPeople: '',
     dateRange: { start: null, end: null },
+    email: '', // Add email to the new plan
   });
   const [groupSize, setGroupSize] = useState(1);
+  const [currentUserEmail, setCurrentUserEmail] = useState(''); // Store current user email
 
   // Fetch all travel plans
   const fetchTravelPlans = async () => {
@@ -35,6 +37,7 @@ function Connect() {
           start: newPlan.dateRange.start,
           end: newPlan.dateRange.end,
         },
+        email: currentUserEmail, // Include current user email
       });
       fetchTravelPlans(); // Refresh the list
 
@@ -46,23 +49,25 @@ function Connect() {
         landmarks: '',
         maxPeople: '',
         dateRange: { start: null, end: null },
+        email: '', // Reset email
       });
     } catch (error) {
       console.error('Error adding travel plan:', error);
     }
   };
 
-  // Join a travel plan
-  const handleJoinPlan = async (id) => {
-    try {
-      await axios.post(`http://localhost:5000/api/travelplans/${id}/join`, { groupSize });
-      fetchTravelPlans(); // Refresh the list
-    } catch (error) {
-      console.error('Error joining travel plan:', error);
-    }
+  // Send Invite to Outlook
+  const handleSendInvite = (email, planTitle) => {
+    const subject = encodeURIComponent(`Join my travel plan: ${planTitle}`);
+    const body = encodeURIComponent(`Hi there, \n\nI would like to invite you to join my travel plan titled "${planTitle}". \n\nPlease let me know if you're interested!\n\nBest regards,`);
+    const outlookLink = `https://outlook.live.com/owa/?path=/mail/action/compose&to=${email}&subject=${subject}&body=${body}`;
+
+    window.open(outlookLink, '_blank'); // Open the Outlook email composer
   };
 
   useEffect(() => {
+    // Fetch current user email if needed, assuming it's part of your authentication system.
+    setCurrentUserEmail('user@example.com'); // Replace with actual user email after authentication
     fetchTravelPlans();
   }, []);
 
@@ -140,67 +145,37 @@ function Connect() {
               />
             </div>
           </div>
+          <button
+            onClick={handleAddTravelPlan}
+            className="col-span-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow transition-all"
+          >
+            Add Travel Plan
+          </button>
         </div>
-        <button
-          onClick={handleAddTravelPlan}
-          className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow transition-all"
-        >
-          Add Travel Plan
-        </button>
       </div>
 
-      {/* List Travel Plans */}
-      <div>
-        <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">
-          Available Travel Plans
-        </h2>
-        {travelPlans.length === 0 ? (
-          <p className="text-gray-500 text-center">No travel plans available yet.</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {travelPlans.map((plan) => (
-              <div
-                key={plan._id}
-                className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all"
+      {/* Display Existing Travel Plans */}
+      <div className="space-y-6">
+        {travelPlans.map((plan) => (
+          <div key={plan._id} className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+            <h3 className="text-xl font-bold text-gray-700">{plan.title}</h3>
+            <p className="text-gray-600 mt-2">{plan.description}</p>
+            <p className="text-gray-700 mt-4">
+              <span className="font-semibold">Landmarks:</span> {plan.landmarks.join(', ')}
+            </p>
+            <p className="text-gray-700 mt-2">
+              <span className="font-semibold">People:</span> {plan.currentPeople}/{plan.maxPeople}
+            </p>
+            <div className="mt-4">
+              <button
+                onClick={() => handleSendInvite(plan.email, plan.title)} // Send invite
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow transition-all"
               >
-                <h3 className="text-xl font-bold text-gray-700">{plan.title}</h3>
-                <p className="text-gray-600 mt-2">{plan.description}</p>
-                <p className="text-gray-700 mt-4">
-                  <span className="font-semibold">Landmarks:</span>{' '}
-                  {plan.landmarks.join(', ')}
-                </p>
-                <p className="text-gray-700 mt-2">
-                  <span className="font-semibold">People:</span>{' '}
-                  {plan.currentPeople}/{plan.maxPeople}
-                </p>
-                {plan.currentPeople < plan.maxPeople ? (
-                  <div className="mt-4">
-                    <input
-                      type="number"
-                      placeholder="Group Size"
-                      value={groupSize}
-                      onChange={(e) => setGroupSize(Number(e.target.value))}
-                      className="border border-gray-300 rounded-lg px-4 py-2 mr-2 w-20"
-                    />
-                    <button
-                      onClick={() => handleJoinPlan(plan._id)}
-                      className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 shadow transition-all"
-                    >
-                      Join
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    disabled
-                    className="mt-4 bg-gray-400 text-white px-4 py-2 rounded-lg cursor-not-allowed"
-                  >
-                    Full
-                  </button>
-                )}
-              </div>
-            ))}
+                Send Request
+              </button>
+            </div>
           </div>
-        )}
+        ))}
       </div>
     </div>
   );

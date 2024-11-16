@@ -64,7 +64,7 @@ function App() {
   const toggleProfileMenu = () => setProfileMenuOpen(!profileMenuOpen);
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-gray-100">
       {/* Navbar */}
       <nav className="bg-gray-900 p-4 text-white w-full">
         <div className="container mx-auto flex justify-between items-center">

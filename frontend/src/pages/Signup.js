@@ -26,7 +26,6 @@ const Signup = () => {
 
     try {
       const response = await axios.post('http://localhost:5000/api/auth/signup', formData);
-      //alert(response.data.message); // Display OTP sent message
       localStorage.setItem('email', formData.email); // Store email for OTP verification
       setOtpSent(true); // Show OTP form
       navigate('/verify-otp'); // Redirect to OTP verification page
@@ -47,7 +46,6 @@ const Signup = () => {
 
       const response = await axios.post('http://localhost:5000/api/auth/verify-otp', { otp, email });
 
-      //alert(response.data.message); // Display success message
       navigate('/login'); // Redirect to login page after successful OTP verification
     } catch (error) {
       alert(error.response?.data?.message || 'Something went wrong.');
@@ -60,7 +58,7 @@ const Signup = () => {
     <div className="flex justify-center items-center min-h-screen bg-gray-100">
       <form
         onSubmit={otpSent ? handleOtpSubmit : handleSubmit} // Conditional form submission
-        className="bg-white p-6 rounded-lg shadow-md w-full max-w-md space-y-4"
+        className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md space-y-6"
       >
         <h2 className="text-2xl font-semibold text-center text-blue-600">
           {otpSent ? 'Enter OTP' : 'Create an Account'}
@@ -74,7 +72,7 @@ const Signup = () => {
               name="name"
               placeholder="Name"
               onChange={handleChange}
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
             <input
@@ -82,7 +80,7 @@ const Signup = () => {
               name="email"
               placeholder="Email"
               onChange={handleChange}
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
             <input
@@ -90,12 +88,12 @@ const Signup = () => {
               name="password"
               placeholder="Password"
               onChange={handleChange}
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition duration-300"
+              className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition duration-300"
               disabled={loading}
             >
               {loading ? 'Signing Up...' : 'Sign Up'}
@@ -108,12 +106,12 @@ const Signup = () => {
               value={otp}
               onChange={handleOtpChange}
               placeholder="Enter OTP"
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition duration-300"
+              className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition duration-300"
               disabled={loading}
             >
               {loading ? 'Verifying OTP...' : 'Verify OTP'}

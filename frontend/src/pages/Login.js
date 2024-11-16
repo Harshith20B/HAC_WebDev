@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const Login = ({ setIsLoggedIn }) => {
+const Login = ({ setIsLoggedIn, setUser }) => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
@@ -11,9 +11,12 @@ const Login = ({ setIsLoggedIn }) => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
+      const user = JSON.parse(localStorage.getItem('user'));
+      setUser(user);
+      setIsLoggedIn(true);
       navigate('/'); // Redirect to the homepage if the user is logged in
     }
-  }, [navigate]);
+  }, [navigate, setIsLoggedIn, setUser]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -37,15 +40,14 @@ const Login = ({ setIsLoggedIn }) => {
       const data = await response.json();
 
       if (response.ok) {
-        // Store the token
+        // Store the token and user info
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        
-        // Update the parent component state
+
         setIsLoggedIn(true);
-        
-        // Redirect to home page or dashboard
-        navigate('/');
+        setUser(data.user);
+
+        navigate('/'); // Redirect to homepage
       } else {
         setError(data.message || 'Login failed');
       }
@@ -60,7 +62,7 @@ const Login = ({ setIsLoggedIn }) => {
     <div className="flex justify-center items-center min-h-screen bg-gray-100">
       <form
         onSubmit={handleSubmit}
-        className="bg-white p-6 rounded-lg shadow-md w-full max-w-md space-y-4"
+        className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md space-y-6"
       >
         <h2 className="text-2xl font-semibold text-center text-blue-600">Log In</h2>
         
@@ -77,7 +79,7 @@ const Login = ({ setIsLoggedIn }) => {
             value={formData.email}
             onChange={handleChange}
             placeholder="Email"
-            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
           <input
@@ -86,12 +88,12 @@ const Login = ({ setIsLoggedIn }) => {
             value={formData.password}
             onChange={handleChange}
             placeholder="Password"
-            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition duration-300 disabled:bg-blue-400"
+            className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition duration-300 disabled:bg-blue-400"
             disabled={loading}
           >
             {loading ? 'Logging In...' : 'Login'}

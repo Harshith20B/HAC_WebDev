@@ -12,7 +12,7 @@ exports.getTravelPlans = async (req, res) => {
 
 // Add a new travel plan
 exports.addTravelPlan = async (req, res) => {
-  const { user, title, description, landmarks, maxPeople, dateRange } = req.body;
+  const { user, title, description, landmarks, maxPeople, dateRange, email } = req.body;
 
   try {
     const newPlan = new TravelPlan({
@@ -23,6 +23,7 @@ exports.addTravelPlan = async (req, res) => {
       maxPeople,
       currentPeople: 0, // Initial count is zero
       dateRange,
+      email, // Save the email of the user creating the travel plan
     });
 
     await newPlan.save();
@@ -32,7 +33,7 @@ exports.addTravelPlan = async (req, res) => {
   }
 };
 
-// Join a travel plan
+// Join a travel plan (optional based on your needs)
 exports.joinTravelPlan = async (req, res) => {
   const { id } = req.params;
   const { groupSize } = req.body;

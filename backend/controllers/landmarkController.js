@@ -1,7 +1,7 @@
 // controllers/landmarkController.js
 
 const Landmark = require('../models/Landmark');
-
+const Landmark2 = require('../models/Landmark2');
 // Function to get most visited landmarks
 const getMostVisitedLandmarks = async (req, res) => {
   try {

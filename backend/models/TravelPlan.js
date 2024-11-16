@@ -11,6 +11,7 @@ const travelPlanSchema = new mongoose.Schema({
     start: { type: Date, required: true },
     end: { type: Date, required: true },
   },
+  email: { type: String, required: true }, // Store the email of the user who created the travel plan
 });
 
 module.exports = mongoose.model('TravelPlan', travelPlanSchema);

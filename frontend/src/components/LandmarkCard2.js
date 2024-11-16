@@ -19,8 +19,12 @@ function LandmarkCard2({ landmark, isSelected, onSelect }) {
         {/* Landmark description */}
         <p className="text-gray-700 mb-2">{landmark.description}</p>
         {/* Landmark location */}
+        <p className="text-gray-500 mb-1">
+          Location: {landmark.location}
+        </p>
+        {/* Latitude and Longitude */}
         <p className="text-gray-500">
-          Location: {landmark.location ? `${landmark.location.lat}, ${landmark.location.lon}` : 'Unknown'}
+          Coordinates: {landmark.latitude}, {landmark.longitude}
         </p>
       </div>
     </div>

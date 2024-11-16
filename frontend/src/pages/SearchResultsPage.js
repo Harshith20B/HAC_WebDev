@@ -15,7 +15,7 @@ function SearchResultsPage() {
   useEffect(() => {
     const fetchLandmarks = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/landmark/search2`, {
+        const response = await axios.get(`http://localhost:5000/api/landmarks/search2`, {
           params: { location: searchLocation, radius: searchRadius },
         });
         setLandmarks(response.data);
@@ -35,9 +35,14 @@ function SearchResultsPage() {
     );
   };
 
-  const handleDevisePlan = () => {
-    navigate('/devise-plan', { state: { selectedLandmarks } });
-  };
+  // In SearchResultsPage.js (or wherever you're navigating from)
+const handleDevisePlan = () => {
+  const fullLandmarkData = landmarks.filter((landmark) =>
+    selectedLandmarks.includes(landmark._id)
+  );
+  navigate('/devise-plan', { state: { selectedLandmarks: fullLandmarkData } });
+};
+
 
   return (
     <div className="container mx-auto px-4 flex flex-col min-h-screen">
