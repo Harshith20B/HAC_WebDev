@@ -19,7 +19,7 @@ function Connect() {
 
   const fetchTravelPlans = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/travelplans');
+      const response = await axios.get('https://hac-webdev-2.onrender.com/api/travelplans');
       setTravelPlans(response.data);
     } catch (error) {
       console.error('Error fetching travel plans:', error);
@@ -47,7 +47,7 @@ function Connect() {
     // Replace with actual logic to fetch user session
     const fetchCurrentUser = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/user'); // Example endpoint
+        const response = await axios.get('https://hac-webdev-2.onrender.com/api/user'); // Example endpoint
         setCurrentUserEmail(response.data.email);
       } catch (error) {
         console.error('Error fetching current user:', error);

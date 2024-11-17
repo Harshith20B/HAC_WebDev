@@ -24,7 +24,7 @@ const VerifyOtp = () => {
       const email = localStorage.getItem('email');
 
       // Send OTP to backend for verification
-      const response = await axios.post('http://localhost:5000/api/auth/verify-otp', { otp, email });
+      const response = await axios.post('https://hac-webdev-2.onrender.com/api/auth/verify-otp', { otp, email });
 
       //alert(response.data.message);  // Display success message
       navigate('/login');  // Redirect to login page after successful OTP verification

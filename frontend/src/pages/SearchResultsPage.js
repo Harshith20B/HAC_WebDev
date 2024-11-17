@@ -15,7 +15,7 @@ function SearchResultsPage() {
   useEffect(() => {
     const fetchLandmarks = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/landmarks/search2`, {
+        const response = await axios.get(`https://hac-webdev-2.onrender.com/api/landmarks/search2`, {
           params: { location: searchLocation, radius: searchRadius },
         });
         setLandmarks(response.data);

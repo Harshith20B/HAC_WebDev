@@ -22,7 +22,7 @@ function App() {
   const navigate = useNavigate();
 
   // Hardcoded API Base URL
-  const API_BASE_URL = 'http://localhost:5000/api'; // Change to your live backend URL when deployed
+  const API_BASE_URL = 'https://hac-webdev-2.onrender.com/api'; // Change to your live backend URL when deployed
 
   useEffect(() => {
     const token = localStorage.getItem('token');

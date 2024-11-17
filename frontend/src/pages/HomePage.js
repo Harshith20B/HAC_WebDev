@@ -14,7 +14,7 @@ const HomePage = () => {
 
   // Fetch landmarks from the database
   useEffect(() => {
-    axios.get('http://localhost:5000/api/landmarks')
+    axios.get('https://hac-webdev-2.onrender.com/api/landmarks')
       .then((response) => {
         setLandmarks(response.data);  // Assume landmarks are returned in an array
       })
