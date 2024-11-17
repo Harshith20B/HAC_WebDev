@@ -7,6 +7,7 @@ const landmarkRoutes = require('./routes/landmarkRoutes');
 const exploreRoutes = require('./routes/exploreRoutes');
 const productRoutes = require('./routes/productRoutes');
 const travelPlanRoutes = require('./routes/travelPlanRoutes');
+const addBookmark = require('./routes/userRoutes');
 require('dotenv').config();
 const app = express();
 
@@ -27,6 +28,7 @@ app.use('/api', productRoutes);
 app.use('/api/travelplans', travelPlanRoutes);
 app.use('/api/explore', exploreRoutes);
 app.use('/api/landmarks', landmarkRoutes);
+app.use('/api/bookmark', addBookmark);
 app.use('/api/auth', authRoutes);  // Use the routes for authentication
 console.log(process.env.EMAIL_USER, process.env.EMAIL_PASS);  // Log the credentials
 const PORT = process.env.PORT || 5000;

@@ -11,19 +11,23 @@ exports.getTravelPlans = async (req, res) => {
 };
 
 // Add a new travel plan
+// Add a new travel plan
 exports.addTravelPlan = async (req, res) => {
-  const { user, title, description, landmarks, maxPeople, dateRange, email } = req.body;
+  const { user, title, description, landmarks, maxPeople, dateRange } = req.body;
 
   try {
+    // Use the email from the logged-in user's session
+    const email = req.user.email;
+
     const newPlan = new TravelPlan({
       user,
       title,
       description,
       landmarks,
       maxPeople,
-      currentPeople: 0, // Initial count is zero
+      currentPeople: 0,
       dateRange,
-      email, // Save the email of the user creating the travel plan
+      email, // Save the logged-in user's email
     });
 
     await newPlan.save();
