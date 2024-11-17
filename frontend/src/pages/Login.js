@@ -7,20 +7,19 @@ const Login = ({ setIsLoggedIn, setUser }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Check if the user is already logged in on component mount
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
       const user = JSON.parse(localStorage.getItem('user'));
       setUser(user);
       setIsLoggedIn(true);
-      navigate('/'); // Redirect to the homepage if the user is logged in
+      navigate('/');
     }
   }, [navigate, setIsLoggedIn, setUser]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    setError(''); // Clear error when user types
+    setError('');
   };
 
   const handleSubmit = async (e) => {
@@ -40,14 +39,11 @@ const Login = ({ setIsLoggedIn, setUser }) => {
       const data = await response.json();
 
       if (response.ok) {
-        // Store the token and user info
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
-
         setIsLoggedIn(true);
         setUser(data.user);
-
-        navigate('/'); // Redirect to homepage
+        navigate('/');
       } else {
         setError(data.message || 'Login failed');
       }
@@ -59,12 +55,12 @@ const Login = ({ setIsLoggedIn, setUser }) => {
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-100">
+    <div className="flex justify-center items-center min-h-screen dark:bg-darkBackground bg-lightBackground">
       <form
         onSubmit={handleSubmit}
-        className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md space-y-6"
+        className="dark:bg-gray-800 bg-white p-6 rounded-lg shadow-lg w-full max-w-md space-y-6"
       >
-        <h2 className="text-2xl font-semibold text-center text-blue-600">Log In</h2>
+        <h2 className="text-2xl font-semibold text-center dark:text-blue-400 text-blue-600">Log In</h2>
         
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
@@ -79,7 +75,9 @@ const Login = ({ setIsLoggedIn, setUser }) => {
             value={formData.email}
             onChange={handleChange}
             placeholder="Email"
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full p-3 border dark:border-gray-600 border-gray-300 rounded-lg 
+                     dark:bg-gray-700 dark:text-white
+                     focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
           <input
@@ -88,12 +86,16 @@ const Login = ({ setIsLoggedIn, setUser }) => {
             value={formData.password}
             onChange={handleChange}
             placeholder="Password"
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full p-3 border dark:border-gray-600 border-gray-300 rounded-lg 
+                     dark:bg-gray-700 dark:text-white
+                     focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition duration-300 disabled:bg-blue-400"
+            className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 
+                     dark:bg-blue-500 dark:hover:bg-blue-600
+                     transition duration-300 disabled:bg-blue-400"
             disabled={loading}
           >
             {loading ? 'Logging In...' : 'Login'}

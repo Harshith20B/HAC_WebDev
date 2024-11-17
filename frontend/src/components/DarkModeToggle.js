@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 const DarkModeToggle = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
-  // Set the initial mode based on localStorage or user's system preference
   useEffect(() => {
     const savedMode = localStorage.getItem('darkMode');
     if (savedMode) {
@@ -31,8 +30,30 @@ const DarkModeToggle = () => {
   };
 
   return (
-    <button onClick={toggleDarkMode} className="text-white bg-gray-900 p-2 rounded-full">
-      {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+    <button
+      onClick={toggleDarkMode}
+      className={`
+        relative h-8 w-14 rounded-full p-1 
+        transition-colors duration-300 focus:outline-none
+        ${isDarkMode ? 'bg-gray-600 border-2 border-gray-400' : 'bg-gray-200 border-2 border-gray-300'}
+      `}
+    >
+      <div
+        className={`
+          absolute top-0.5 
+          transform transition-transform duration-300 ease-in-out
+          w-6 h-6 rounded-full flex items-center justify-center
+          ${isDarkMode 
+            ? 'translate-x-6 bg-gray-900 shadow-[0_0_2px_2px_rgba(255,255,255,0.1)]' 
+            : 'translate-x-0 bg-white shadow-[0_1px_4px_rgba(0,0,0,0.15)]'}
+        `}
+      >
+        {isDarkMode ? (
+          <span className="material-icons text-sm text-yellow-400">dark_mode</span>
+        ) : (
+          <span className="material-icons text-sm text-yellow-500">light_mode</span>
+        )}
+      </div>
     </button>
   );
 };

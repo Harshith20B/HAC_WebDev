@@ -35,18 +35,16 @@ function SearchResultsPage() {
     );
   };
 
-  // In SearchResultsPage.js (or wherever you're navigating from)
-const handleDevisePlan = () => {
-  const fullLandmarkData = landmarks.filter((landmark) =>
-    selectedLandmarks.includes(landmark._id)
-  );
-  navigate('/devise-plan', { state: { selectedLandmarks: fullLandmarkData } });
-};
-
+  const handleDevisePlan = () => {
+    const fullLandmarkData = landmarks.filter((landmark) =>
+      selectedLandmarks.includes(landmark._id)
+    );
+    navigate('/devise-plan', { state: { selectedLandmarks: fullLandmarkData } });
+  };
 
   return (
-    <div className="container mx-auto px-4 flex flex-col min-h-screen">
-      <h2 className="text-2xl font-bold mb-4 text-center">
+    <div className="container mx-auto px-4 flex flex-col min-h-screen bg-white dark:bg-gray-900">
+      <h2 className="text-2xl font-bold mb-4 text-center text-gray-800 dark:text-white">
         Landmarks near {searchLocation} within {searchRadius} km
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 flex-grow">
@@ -60,13 +58,15 @@ const handleDevisePlan = () => {
             />
           ))
         ) : (
-          <p className="text-center col-span-3">No landmarks found.</p>
+          <p className="text-center col-span-3 text-gray-600 dark:text-gray-300">
+            No landmarks found.
+          </p>
         )}
       </div>
-      <div className="text-center mt-8">
+      <div className="text-center mt-8 mb-6">
         <button
           onClick={handleDevisePlan}
-          className="bg-blue-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-600 transition"
+          className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={!selectedLandmarks.length}
         >
           Devise Plan
