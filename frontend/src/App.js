@@ -21,6 +21,9 @@ function App() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
+  // Hardcoded API Base URL
+  const API_BASE_URL = 'http://localhost:5000/api'; // Change to your live backend URL when deployed
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     const storedUser = JSON.parse(localStorage.getItem('user'));
@@ -50,14 +53,14 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      await axios.post('http://localhost:5000/api/auth/logout');
+      await axios.post(`${API_BASE_URL}/auth/logout`); // Updated to use hardcoded base URL
       localStorage.removeItem('user');
       localStorage.removeItem('token');
       setIsLoggedIn(false);
       setUser(null);
       navigate('/');
     } catch (error) {
-      console.error("Logout failed:", error);
+      console.error('Logout failed:', error);
     }
   };
 

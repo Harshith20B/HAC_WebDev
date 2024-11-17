@@ -1,4 +1,4 @@
-const TravelPlan = require('../models/travelPlan');
+const TravelPlan = require('../models/TravelPlan');
 
 // Fetch all travel plans
 exports.getTravelPlans = async (req, res) => {
@@ -13,21 +13,19 @@ exports.getTravelPlans = async (req, res) => {
 // Add a new travel plan
 // Add a new travel plan
 exports.addTravelPlan = async (req, res) => {
-  const { user, title, description, landmarks, maxPeople, dateRange } = req.body;
+  const { title, description, landmarks, maxPeople, dateRange } = req.body;
+  const email = req.user.email;  // Get the email from the logged-in user
 
   try {
-    // Use the email from the logged-in user's session
-    const email = req.user.email;
-
     const newPlan = new TravelPlan({
-      user,
+      user: email,  // Use email as the user field (instead of the user provided in the body)
       title,
       description,
       landmarks,
       maxPeople,
       currentPeople: 0,
       dateRange,
-      email, // Save the logged-in user's email
+      email, // Store the email of the user who created the travel plan
     });
 
     await newPlan.save();

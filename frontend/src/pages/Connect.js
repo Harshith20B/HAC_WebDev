@@ -26,31 +26,9 @@ function Connect() {
     }
   };
 
-  const handleAddTravelPlan = async () => {
-    try {
-      await axios.post('http://localhost:5000/api/travelplans', {
-        ...newPlan,
-        landmarks: newPlan.landmarks.split(','), // Split landmarks into an array
-        dateRange: {
-          start: newPlan.dateRange.start,
-          end: newPlan.dateRange.end,
-        },
-        email: currentUserEmail, // Automatically associate with logged-in user
-      });
-  
-      fetchTravelPlans(); // Refresh plans
-      setNewPlan({
-        user: '',
-        title: '',
-        description: '',
-        landmarks: '',
-        maxPeople: '',
-        dateRange: { start: null, end: null },
-        email: '',
-      });
-    } catch (error) {
-      console.error('Error adding travel plan:', error);
-    }
+  const handleAddTravelPlan = () => {
+    // This is now a dummy function (no actual backend call)
+    console.log("Add Travel Plan button clicked, but no action performed");
   };
 
   const handleSendInvite = (recipientEmail, planTitle) => {
@@ -59,12 +37,12 @@ function Connect() {
     const outlookLink = `https://outlook.live.com/owa/?path=/mail/action/compose&to=${recipientEmail}&subject=${subject}&body=${body}`;
     window.open(outlookLink, '_blank'); // Open Outlook compose window
   };
-  
 
   useEffect(() => {
     setCurrentUserEmail('user@example.com');
     fetchTravelPlans();
   }, []);
+
   useEffect(() => {
     // Replace with actual logic to fetch user session
     const fetchCurrentUser = async () => {
@@ -75,11 +53,11 @@ function Connect() {
         console.error('Error fetching current user:', error);
       }
     };
-  
+
     fetchCurrentUser();
     fetchTravelPlans();
   }, []);
-  
+
   return (
     <div className="max-w-5xl mx-auto p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-gray-800 dark:to-gray-900 min-h-screen">
       <h1 className="text-4xl font-extrabold text-gray-800 dark:text-white mb-6 text-center">
@@ -153,6 +131,7 @@ function Connect() {
               />
             </div>
           </div>
+          {/* Dummy button */}
           <button
             onClick={handleAddTravelPlan}
             className="col-span-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow transition-all"
@@ -163,30 +142,29 @@ function Connect() {
       </div>
 
       <div className="space-y-6">
-      {travelPlans.map((plan) => (
-        <div key={plan._id} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-          <h3 className="text-xl font-bold text-gray-700 dark:text-white">{plan.title}</h3>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">{plan.description}</p>
-          <p className="text-gray-700 dark:text-gray-300 mt-4">
-            <span className="font-semibold">Landmarks:</span> {plan.landmarks.join(', ')}
-          </p>
-          <p className="text-gray-700 dark:text-gray-300 mt-2">
-            <span className="font-semibold">People:</span> {plan.currentPeople}/{plan.maxPeople}
-          </p>
-          <p className="text-gray-700 dark:text-gray-300 mt-2">
-            <span className="font-semibold">Created By:</span> {plan.email}
-          </p>
-          <div className="mt-4">
-            <button
-              onClick={() => handleSendInvite(plan.email, plan.title)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow transition-all"
-            >
-              Send Request
-            </button>
+        {travelPlans.map((plan) => (
+          <div key={plan._id} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+            <h3 className="text-xl font-bold text-gray-700 dark:text-white">{plan.title}</h3>
+            <p className="text-gray-600 dark:text-gray-300 mt-2">{plan.description}</p>
+            <p className="text-gray-700 dark:text-gray-300 mt-4">
+              <span className="font-semibold">Landmarks:</span> {plan.landmarks.join(', ')}
+            </p>
+            <p className="text-gray-700 dark:text-gray-300 mt-2">
+              <span className="font-semibold">People:</span> {plan.currentPeople}/{plan.maxPeople}
+            </p>
+            <p className="text-gray-700 dark:text-gray-300 mt-2">
+              <span className="font-semibold">Created By:</span> {plan.email}
+            </p>
+            <div className="mt-4">
+              <button
+                onClick={() => handleSendInvite(plan.email, plan.title)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow transition-all"
+              >
+                Send Request
+              </button>
+            </div>
           </div>
-        </div>
-      ))}
-
+        ))}
       </div>
     </div>
   );
