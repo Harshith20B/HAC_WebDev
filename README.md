@@ -1,6 +1,6 @@
 Booster Points implemented:
 1. Implemented toggling dark mode
-2. Pop up notification with salutation as soonn as user visits the website
+2. Pop up notification with salutation as soon as user visits the website
 
 Unique Features:
 
