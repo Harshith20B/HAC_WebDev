@@ -1,30 +1,30 @@
 import React from 'react';
 
 function LandmarkCard2({ landmark, isSelected, onSelect }) {
+  const handleClick = () => {
+    console.log('Clicking landmark:', landmark.name);
+    onSelect(landmark.name);
+  };
+
   return (
     <div
-      onClick={() => onSelect(landmark._id)} // Trigger the onSelect function with the landmark's _id
-      className={`cursor-pointer bg-white rounded-lg shadow-md overflow-hidden border-2 
-        ${isSelected ? 'border-blue-500' : 'border-transparent'} transition-all duration-300`}
+      onClick={handleClick}
+      className={`cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border-2 
+        ${isSelected ? 'border-blue-500' : 'border-transparent'} 
+        transition-all duration-300 hover:shadow-lg transform hover:-translate-y-1`}
     >
-      {/* Landmark image */}
       <img
-        src={landmark.imageUrl} // Assuming each landmark has an imageUrl property
+        src={landmark.imageUrl || 'https://via.placeholder.com/400x300?text=No+Image'}
         alt={landmark.name}
         className="w-full h-48 object-cover"
       />
       <div className="p-4">
-        {/* Landmark name */}
-        <h3 className="text-xl font-semibold mb-2">{landmark.name}</h3>
-        {/* Landmark description */}
-        <p className="text-gray-700 mb-2">{landmark.description}</p>
-        {/* Landmark location */}
-        <p className="text-gray-500 mb-1">
-          Location: {landmark.location}
+        <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">{landmark.name}</h3>
+        <p className="text-gray-700 dark:text-gray-300 mb-2">
+          {landmark.description || 'No description available.'}
         </p>
-        {/* Latitude and Longitude */}
-        <p className="text-gray-500">
-          Coordinates: {landmark.latitude}, {landmark.longitude}
+        <p className="text-gray-500 dark:text-gray-400 mb-1 text-sm">
+          Location: {landmark.latitude?.toFixed(4)}, {landmark.longitude?.toFixed(4)}
         </p>
       </div>
     </div>

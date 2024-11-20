@@ -38,7 +38,6 @@ const fetchImageFromWikidata = async (query) => {
   return 'https://via.placeholder.com/500x300?text=Image+Not+Found';
 };
 
-// Function to get landmarks with images
 const getLandmarksWithImages = async (req, res) => {
   const { location, radius } = req.query;
   const apiKey = process.env.OPENTRIPMAP_API_KEY;
@@ -53,35 +52,48 @@ const getLandmarksWithImages = async (req, res) => {
     const landmarkUrl = `https://api.opentripmap.com/0.1/en/places/radius?radius=${radius * 1000}&lon=${lon}&lat=${lat}&apikey=${apiKey}&limit=20`;
     const landmarkResponse = await axios.get(landmarkUrl);
 
+    // Log the raw data structure
+    console.log('Raw OpenTripMap Response:', landmarkResponse.data.features[0]);
+
     // Step 3: Process landmarks and fetch images
     const landmarks = await Promise.all(
       landmarkResponse.data.features.map(async (feature) => {
         const xid = feature.properties.xid;
+        // Ensure xid exists and is unique
+        if (!xid) {
+          console.error('Missing xid for feature:', feature);
+          return null;
+        }
+
         const landmarkData = {
-          id: xid,
+          _id: xid,
           name: feature.properties.name || 'Unknown Name',
           kinds: feature.properties.kinds,
           osm: feature.properties.osm,
           dist: feature.properties.dist,
-          location: { lat: feature.geometry.coordinates[1], lon: feature.geometry.coordinates[0] },
+          coordinates: feature.geometry.coordinates,
+          location: {
+            lat: feature.geometry.coordinates[1],
+            lon: feature.geometry.coordinates[0]
+          }
         };
 
-        // Step 3a: Try to fetch image from OpenTripMap's details API
+        // Fetch image
         let image = await fetchDetailsFromOpenTripMap(xid, apiKey);
-
-        // Step 3b: Fallback to Wikidata if no image is found
         if (!image) {
-          logger.warn(`No image found for "${landmarkData.name}" in OpenTripMap. Searching Wikidata...`);
           image = await fetchImageFromWikidata(landmarkData.name);
         }
-
-        // Step 3c: Fallback to default image if all fails
-        landmarkData.image = image || 'https://via.placeholder.com/500x300?text=Image+Not+Available';
+        landmarkData.imageUrl = image || 'https://via.placeholder.com/500x300?text=Image+Not+Available';
+        
         return landmarkData;
       })
     );
 
-    res.json(landmarks);
+    // Filter out any null values and log the processed landmarks
+    const validLandmarks = landmarks.filter(landmark => landmark !== null);
+    console.log('Processed landmarks:', validLandmarks.map(l => ({ _id: l._id, name: l.name })));
+
+    res.json(validLandmarks);
   } catch (error) {
     logger.error("Error fetching landmarks with images:", error.message);
     res.status(500).json({ message: 'Error fetching landmarks with images' });
