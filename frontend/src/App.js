@@ -12,7 +12,7 @@ import LandmarkDetails from './pages/LandmarkDetails';
 import DevisePlanPage from './pages/DevisePlanPage';
 import DarkModeToggle from './components/DarkModeToggle';
 import axios from 'axios';
-
+import TravelForm from './pages/TravelForm';
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -175,6 +175,7 @@ function App() {
           <Route path="/connect" element={<Connect />} />
           <Route path="/landmark-details/:landmarkId" element={<LandmarkDetails />} />
           <Route path="/devise-plan" element={<DevisePlanPage />} />
+          <Route path="/create-travel-plan" element={<TravelForm />} />
         </Routes>
       </main>
     </div>

@@ -1,173 +1,132 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+import { Calendar, Users, MapPin } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-function Connect() {
+const Connect = () => {
   const [travelPlans, setTravelPlans] = useState([]);
-  const [newPlan, setNewPlan] = useState({
-    user: '',
-    title: '',
-    description: '',
-    landmarks: '',
-    maxPeople: '',
-    dateRange: { start: null, end: null },
-    email: '',
-  });
-  const [groupSize, setGroupSize] = useState(1);
-  const [currentUserEmail, setCurrentUserEmail] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
 
   const fetchTravelPlans = async () => {
     try {
-      const response = await axios.get('https://hac-webdev-2.onrender.com/api/travelplans');
-      setTravelPlans(response.data);
+      setLoading(true);
+      const response = await fetch('https://hac-webdev-2.onrender.com/api/travelplans');
+      if (!response.ok) {
+        throw new Error('Failed to fetch travel plans');
+      }
+      const data = await response.json();
+      setTravelPlans(data);
     } catch (error) {
       console.error('Error fetching travel plans:', error);
+      setError('Failed to load travel plans. Please try again later.');
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const handleAddTravelPlan = () => {
-    // This is now a dummy function (no actual backend call)
-    console.log("Add Travel Plan button clicked, but no action performed");
   };
 
   const handleSendInvite = (recipientEmail, planTitle) => {
     const subject = encodeURIComponent(`Join my travel plan: ${planTitle}`);
-    const body = encodeURIComponent(`Hi there,\n\nI would like to join your travel plan titled "${planTitle}".\n\nPlease let me know if there's room for me!\n\nBest regards,`);
-    const outlookLink = `https://outlook.live.com/owa/?path=/mail/action/compose&to=${recipientEmail}&subject=${subject}&body=${body}`;
-    window.open(outlookLink, '_blank'); // Open Outlook compose window
+    const body = encodeURIComponent(
+      `Hi there,\n\nI would like to join your travel plan titled "${planTitle}".\n\nPlease let me know if there's room for me!\n\nBest regards,`
+    );
+    
+    // Open email client with pre-filled details
+    window.location.href = `mailto:${recipientEmail}?subject=${subject}&body=${body}`;
   };
 
   useEffect(() => {
-    setCurrentUserEmail('user@example.com');
     fetchTravelPlans();
   }, []);
 
-  useEffect(() => {
-    // Replace with actual logic to fetch user session
-    const fetchCurrentUser = async () => {
-      try {
-        const response = await axios.get('https://hac-webdev-2.onrender.com/api/user'); // Example endpoint
-        setCurrentUserEmail(response.data.email);
-      } catch (error) {
-        console.error('Error fetching current user:', error);
-      }
-    };
-
-    fetchCurrentUser();
-    fetchTravelPlans();
-  }, []);
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-gray-600 dark:text-gray-300">Loading travel plans...</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-5xl mx-auto p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-gray-800 dark:to-gray-900 min-h-screen">
-      <h1 className="text-4xl font-extrabold text-gray-800 dark:text-white mb-6 text-center">
-        Travel Plans
-      </h1>
-
-      <div className="mb-10 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
-        <h2 className="text-2xl font-semibold text-gray-700 dark:text-white mb-4">
-          Add Travel Plan
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <input
-            type="text"
-            placeholder="Your Name"
-            value={newPlan.user}
-            onChange={(e) => setNewPlan({ ...newPlan, user: e.target.value })}
-            className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-          />
-          <input
-            type="text"
-            placeholder="Title"
-            value={newPlan.title}
-            onChange={(e) => setNewPlan({ ...newPlan, title: e.target.value })}
-            className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-          />
-          <textarea
-            placeholder="Description"
-            value={newPlan.description}
-            onChange={(e) => setNewPlan({ ...newPlan, description: e.target.value })}
-            className="col-span-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-          />
-          <input
-            type="text"
-            placeholder="Landmarks (comma-separated)"
-            value={newPlan.landmarks}
-            onChange={(e) => setNewPlan({ ...newPlan, landmarks: e.target.value })}
-            className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-          />
-          <input
-            type="number"
-            placeholder="Max People"
-            value={newPlan.maxPeople}
-            onChange={(e) => setNewPlan({ ...newPlan, maxPeople: e.target.value })}
-            className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-          />
-          <div className="col-span-2 flex gap-4 items-center">
-            <div>
-              <label className="block text-gray-600 dark:text-gray-300 mb-1">Start Date</label>
-              <DatePicker
-                selected={newPlan.dateRange.start}
-                onChange={(date) =>
-                  setNewPlan({ ...newPlan, dateRange: { ...newPlan.dateRange, start: date } })
-                }
-                selectsStart
-                startDate={newPlan.dateRange.start}
-                endDate={newPlan.dateRange.end}
-                className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-2"
-              />
-            </div>
-            <div>
-              <label className="block text-gray-600 dark:text-gray-300 mb-1">End Date</label>
-              <DatePicker
-                selected={newPlan.dateRange.end}
-                onChange={(date) =>
-                  setNewPlan({ ...newPlan, dateRange: { ...newPlan.dateRange, end: date } })
-                }
-                selectsEnd
-                startDate={newPlan.dateRange.start}
-                endDate={newPlan.dateRange.end}
-                className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-2"
-              />
-            </div>
-          </div>
-          {/* Dummy button */}
-          <button
-            onClick={handleAddTravelPlan}
-            className="col-span-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow transition-all"
-          >
-            Add Travel Plan
-          </button>
-        </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8">
+      {/* Hero Section */}
+      <div className="max-w-7xl mx-auto text-center mb-12">
+        <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+          Connect with Fellow Travelers
+        </h1>
+        <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
+          Join exciting travel plans or create your own adventure
+        </p>
+        <button
+          onClick={() => navigate('/create-travel-plan')}
+          className="inline-flex items-center px-6 py-3 text-base font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg transition-colors duration-200"
+        >
+          <Users className="mr-2 h-5 w-5" />
+          Create Travel Plan
+        </button>
       </div>
 
-      <div className="space-y-6">
-        {travelPlans.map((plan) => (
-          <div key={plan._id} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-            <h3 className="text-xl font-bold text-gray-700 dark:text-white">{plan.title}</h3>
-            <p className="text-gray-600 dark:text-gray-300 mt-2">{plan.description}</p>
-            <p className="text-gray-700 dark:text-gray-300 mt-4">
-              <span className="font-semibold">Landmarks:</span> {plan.landmarks.join(', ')}
-            </p>
-            <p className="text-gray-700 dark:text-gray-300 mt-2">
-              <span className="font-semibold">People:</span> {plan.currentPeople}/{plan.maxPeople}
-            </p>
-            <p className="text-gray-700 dark:text-gray-300 mt-2">
-              <span className="font-semibold">Created By:</span> {plan.email}
-            </p>
-            <div className="mt-4">
-              <button
-                onClick={() => handleSendInvite(plan.email, plan.title)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow transition-all"
-              >
-                Send Request
-              </button>
-            </div>
+      {error && (
+        <div className="max-w-7xl mx-auto mb-8">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+            {error}
           </div>
-        ))}
+        </div>
+      )}
+
+      {/* Travel Plans Grid */}
+      <div className="max-w-7xl mx-auto grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {travelPlans.length === 0 ? (
+          <div className="col-span-full text-center text-gray-600 dark:text-gray-300">
+            No travel plans available. Be the first to create one!
+          </div>
+        ) : (
+          travelPlans.map((plan) => (
+            <div key={plan._id} className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {plan.title}
+                  </h3>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    by {plan.user}
+                  </span>
+                </div>
+                <p className="text-gray-600 dark:text-gray-300 mb-4">
+                  {plan.description}
+                </p>
+                <div className="space-y-3">
+                  <div className="flex items-center text-gray-600 dark:text-gray-300">
+                    <MapPin className="h-5 w-5 mr-2 flex-shrink-0" />
+                    <span>{Array.isArray(plan.landmarks) ? plan.landmarks.join(', ') : plan.landmarks}</span>
+                  </div>
+                  <div className="flex items-center text-gray-600 dark:text-gray-300">
+                    <Users className="h-5 w-5 mr-2 flex-shrink-0" />
+                    <span>{plan.currentPeople}/{plan.maxPeople} travelers</span>
+                  </div>
+                  <div className="flex items-center text-gray-600 dark:text-gray-300">
+                    <Calendar className="h-5 w-5 mr-2 flex-shrink-0" />
+                    <span>
+                      {new Date(plan.dateRange.start).toLocaleDateString()} - {new Date(plan.dateRange.end).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-6">
+                  <button
+                    onClick={() => handleSendInvite(plan.email, plan.title)}
+                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:bg-gray-400"
+                    disabled={plan.currentPeople >= plan.maxPeople}
+                  >
+                    {plan.currentPeople >= plan.maxPeople ? 'Plan Full' : 'Request to Join'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
-}
+};
 
 export default Connect;
