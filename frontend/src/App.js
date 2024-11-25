@@ -6,7 +6,7 @@ import VerifyOtp from './pages/VerifyOtp';
 import HomePage from './pages/HomePage';
 import SearchResultsPage from './pages/SearchResultsPage';
 import Shops from './pages/ShopPage';
-import Packages from './pages/PackagesPage';
+// import Packages from './pages/PackagesPage';
 import Connect from './pages/Connect';
 import LandmarkDetails from './pages/LandmarkDetails';
 import DevisePlanPage from './pages/DevisePlanPage';
@@ -88,9 +88,9 @@ function App() {
             <Link to="/shops" className="px-4 py-2 rounded hover:bg-opacity-80">
               Shops
             </Link>
-            <Link to="/packages" className="px-4 py-2 rounded hover:bg-opacity-80">
+            {/* <Link to="/packages" className="px-4 py-2 rounded hover:bg-opacity-80">
               Packages
-            </Link>
+            </Link> */}
             <Link to="/connect" className="px-4 py-2 rounded hover:bg-opacity-80">
               Connect
             </Link>
@@ -140,7 +140,7 @@ function App() {
             </div>
             <Link to="/" className="block text-white py-2">Home</Link>
             <Link to="/shops" className="block text-white py-2">Shops</Link>
-            <Link to="/packages" className="block text-white py-2">Packages</Link>
+            {/* <Link to="/packages" className="block text-white py-2">Packages</Link> */}
             <Link to="/connect" className="block text-white py-2">Connect</Link>
             {isLoggedIn ? (
               <>
@@ -171,7 +171,7 @@ function App() {
           <Route path="/login" element={<Login setIsLoggedIn={setIsLoggedIn} setUser={setUser} />} />
           <Route path="/verify-otp" element={<VerifyOtp />} />
           <Route path="/shops" element={<Shops />} />
-          <Route path="/packages" element={<Packages />} />
+          {/* <Route path="/packages" element={<Packages />} /> */}
           <Route path="/connect" element={<Connect />} />
           <Route path="/landmark-details/:landmarkId" element={<LandmarkDetails />} />
           <Route path="/devise-plan" element={<DevisePlanPage />} />
