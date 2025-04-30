@@ -1,7 +1,9 @@
+// controllers/authController.js
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
+const { generateToken } = require('../middleware/authMiddleware');
 require('dotenv').config();
 
 // Transporter configuration for sending email
@@ -21,9 +23,9 @@ const generateOTP = () => {
 
 const signup = async (req, res) => {
   const { name, email, password } = req.body;
+  // Check if user already exists
 
   try {
-    // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: 'Email already registered' });
@@ -116,16 +118,24 @@ const login = async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    req.session.user = {
+    // Create user data for token and session
+    const userData = {
       id: user._id,
       name: user.name,
       email: user.email,
       isVerified: user.isVerified
     };
 
+    // Set user in session (for web browser clients)
+    req.session.user = userData;
+
+    // Generate JWT token (for API clients like Postman)
+    const token = generateToken(user._id);
+
     res.status(200).json({
       message: 'Login successful',
-      user: req.session.user
+      user: userData,
+      token: token // Return the token to the client
     });
 
   } catch (error) {
@@ -143,4 +153,23 @@ const logout = (req, res) => {
   }
 };
 
-module.exports = { signup, verifyOTP, login, logout };
+// Get current logged-in user info
+const getCurrentUser = async (req, res) => {
+  try {
+    // req.user is set by the authenticateToken middleware
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Something went wrong', error: error.message });
+  }
+};
+
+module.exports = { signup, verifyOTP, login, logout, getCurrentUser };

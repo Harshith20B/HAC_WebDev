@@ -6,7 +6,10 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   isVerified: { type: Boolean, default: false },
-  bookmarks: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Landmark' }] // Array of bookmarked landmark IDs
+  bookmarks: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Landmark' }], // Array of bookmarked landmark IDs
+  posts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }], // Array of user's posts
+  likedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }], // Array of posts liked by user
+  profilePicture: { type: String, default: '' } // Optional profile picture URL
 });
 
 // Hash password before saving

@@ -1,0 +1,3 @@
+python -m venv travelo
+travelo\Scripts\activate
+pip install -r requirements.txt

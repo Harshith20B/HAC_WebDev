@@ -3,7 +3,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-function LandmarkCard1({ landmark }) {
+function LandmarkCard({ landmark }) {
   return (
     <Link to={`/landmark-details/${landmark._id}`} className="bg-white rounded-lg shadow-md overflow-hidden">
       <img src={landmark.imageUrl} alt={landmark.name} className="w-full h-48 object-cover" />
@@ -19,4 +19,4 @@ function LandmarkCard1({ landmark }) {
   );
 }
 
-export default LandmarkCard1;
+export default LandmarkCard;

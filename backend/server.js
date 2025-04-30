@@ -9,7 +9,8 @@ const landmarkRoutes = require('./routes/landmarkRoutes');
 const exploreRoutes = require('./routes/exploreRoutes');
 const productRoutes = require('./routes/productRoutes');
 const travelPlanRoutes = require('./routes/travelPlanRoutes');
-const addBookmark = require('./routes/userRoutes');
+const userRoutes = require('./routes/userRoutes');
+const postsRoutes = require('./routes/postsRoutes'); // Add the new posts routes
 
 dotenv.config();
 const app = express();
@@ -32,7 +33,7 @@ app.use(cors(corsOptions));
 // Pre-flight requests
 app.options('*', cors(corsOptions));
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // Increased limit for handling media
 
 // Add session middleware with secure configuration
 app.use(
@@ -65,8 +66,9 @@ app.use('/api', productRoutes);
 app.use('/api/travelplans', travelPlanRoutes);
 app.use('/api/explore', exploreRoutes);
 app.use('/api/landmarks', landmarkRoutes);
-app.use('/api/bookmark', addBookmark);
+app.use('/api/bookmark', userRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/social', postsRoutes); // Add the new routes with a social prefix
 
 // Error handling middleware
 app.use((err, req, res, next) => {
