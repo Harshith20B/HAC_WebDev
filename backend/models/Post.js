@@ -1,5 +1,22 @@
 const mongoose = require('mongoose');
 
+// Define the comment schema as a sub-document
+const commentSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  text: {
+    type: String,
+    required: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
 const postSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -35,21 +52,7 @@ const postSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
-  comments: [{
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true
-    },
-    text: {
-      type: String,
-      required: true
-    },
-    createdAt: {
-      type: Date,
-      default: Date.now
-    }
-  }],
+  comments: [commentSchema], // Use the comment schema as a sub-document
   createdAt: {
     type: Date,
     default: Date.now
@@ -59,6 +62,6 @@ const postSchema = new mongoose.Schema({
 });
 
 // Create indexes for efficient searching
-postSchema.index({ location: 'text', landmark: 'text', title: 'text' });
+postSchema.index({ location: 'text', landmark: 'text', title: 'text', content: 'text' });
 
 module.exports = mongoose.model('Post', postSchema);

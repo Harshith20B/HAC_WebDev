@@ -1,7 +1,6 @@
 // controllers/postsController.js
 const Post = require('../models/Post');
 const User = require('../models/User');
-const Comment = require('../models/Comment');
 
 // Get all posts with pagination, sorting, and user authentication status
 const getAllPosts = async (req, res) => {
@@ -14,7 +13,7 @@ const getAllPosts = async (req, res) => {
     // Set up sort options
     let sortQuery = {};
     if (sortOption === 'popular') {
-      sortQuery = { likesCount: -1, createdAt: -1 };
+      sortQuery = { likes: -1, createdAt: -1 }; // Sort by number of likes
     } else {
       sortQuery = { createdAt: -1 }; // Default sort by most recent
     }
@@ -26,20 +25,16 @@ const getAllPosts = async (req, res) => {
     const totalPosts = await Post.countDocuments();
     const totalPages = Math.ceil(totalPosts / limit);
     
+    console.log(`Fetching posts: page=${page}, limit=${limit}, totalPosts=${totalPosts}`);
+    
     // Query posts with pagination and sorting
     let posts = await Post.find()
       .sort(sortQuery)
       .skip(skip)
       .limit(limit)
-      .populate('user', 'name email profilePicture')
-      .populate({
-        path: 'comments',
-        options: { sort: { createdAt: -1 } },
-        populate: {
-          path: 'user',
-          select: 'name profilePicture'
-        }
-      });
+      .populate('user', 'name email profilePicture');
+    
+    console.log(`Found ${posts.length} posts`);
     
     // If user is authenticated, mark which posts they have liked
     if (userId) {
@@ -66,7 +61,6 @@ const getAllPosts = async (req, res) => {
 const createPost = async (req, res) => {
   try {
     // Get user ID from the authenticated request
-    // This is set by the authenticateToken middleware
     const userId = req.user.id;
     
     console.log('Creating post for user:', userId);
@@ -93,7 +87,9 @@ const createPost = async (req, res) => {
       mediaType,
       mediaUrl,
       location,
-      landmark: landmark || null
+      landmark: landmark || null,
+      likes: [],
+      comments: []
     });
 
     const savedPost = await newPost.save();
@@ -116,14 +112,7 @@ const createPost = async (req, res) => {
 const getPostById = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
-      .populate('user', 'name email profilePicture')
-      .populate({
-        path: 'comments',
-        populate: {
-          path: 'user',
-          select: 'name profilePicture'
-        }
-      });
+      .populate('user', 'name email profilePicture');
     
     if (!post) {
       return res.status(404).json({ message: 'Post not found' });
@@ -209,9 +198,6 @@ const deletePost = async (req, res) => {
       return res.status(403).json({ message: 'You can only delete your own posts' });
     }
     
-    // Delete all comments associated with the post
-    await Comment.deleteMany({ post: postId });
-    
     // Delete the post
     await Post.findByIdAndDelete(postId);
     
@@ -246,19 +232,16 @@ const likePost = async (req, res) => {
       return res.status(400).json({ message: 'You have already liked this post' });
     }
     
-    // Add user to post's likes array and increment likesCount
+    // Add user to post's likes array
     const updatedPost = await Post.findByIdAndUpdate(
       postId,
-      { 
-        $push: { likes: userId },
-        $inc: { likesCount: 1 }
-      },
+      { $push: { likes: userId } },
       { new: true }
     );
     
     res.status(200).json({ 
       message: 'Post liked successfully',
-      likesCount: updatedPost.likesCount
+      likesCount: updatedPost.likes.length
     });
   } catch (error) {
     console.error('Error liking post:', error);
@@ -284,19 +267,16 @@ const unlikePost = async (req, res) => {
       return res.status(400).json({ message: 'You have not liked this post' });
     }
     
-    // Remove user from post's likes array and decrement likesCount
+    // Remove user from post's likes array
     const updatedPost = await Post.findByIdAndUpdate(
       postId,
-      { 
-        $pull: { likes: userId },
-        $inc: { likesCount: -1 }
-      },
+      { $pull: { likes: userId } },
       { new: true }
     );
     
     res.status(200).json({ 
       message: 'Post unliked successfully',
-      likesCount: updatedPost.likesCount
+      likesCount: updatedPost.likes.length
     });
   } catch (error) {
     console.error('Error unliking post:', error);
@@ -323,30 +303,26 @@ const addComment = async (req, res) => {
     }
     
     // Create a new comment
-    const newComment = new Comment({
+    const newComment = {
       user: userId,
-      post: postId,
-      text
-    });
+      text,
+      createdAt: new Date()
+    };
     
-    const savedComment = await newComment.save();
-    
-    // Add comment to post's comments array and increment commentsCount
-    await Post.findByIdAndUpdate(
+    // Add comment to post's comments array
+    const updatedPost = await Post.findByIdAndUpdate(
       postId,
-      { 
-        $push: { comments: savedComment._id },
-        $inc: { commentsCount: 1 }
-      }
-    );
-    
-    // Populate user data in the saved comment
-    const populatedComment = await Comment.findById(savedComment._id)
-      .populate('user', 'name profilePicture');
+      { $push: { comments: newComment } },
+      { new: true }
+    ).populate('user', 'name email profilePicture')
+      .populate({
+        path: 'comments.user',
+        select: 'name profilePicture'
+      });
     
     res.status(201).json({ 
       message: 'Comment added successfully',
-      comment: populatedComment
+      post: updatedPost
     });
   } catch (error) {
     console.error('Error adding comment:', error);
@@ -360,34 +336,30 @@ const deleteComment = async (req, res) => {
     const { postId, commentId } = req.params;
     const userId = req.user.id;
     
+    // Find the post
+    const post = await Post.findById(postId);
+    
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+    
     // Find the comment
-    const comment = await Comment.findById(commentId);
+    const comment = post.comments.id(commentId);
     
     if (!comment) {
       return res.status(404).json({ message: 'Comment not found' });
     }
     
-    // Check if the user is the owner of the comment
-    if (comment.user.toString() !== userId) {
-      // Check if the user is the owner of the post
-      const post = await Post.findById(postId);
-      
-      if (!post || post.user.toString() !== userId) {
-        return res.status(403).json({ message: 'You can only delete your own comments or comments on your posts' });
-      }
+    // Check if the user is the owner of the comment or the post
+    if (comment.user.toString() !== userId && post.user.toString() !== userId) {
+      return res.status(403).json({ 
+        message: 'You can only delete your own comments or comments on your posts' 
+      });
     }
     
-    // Delete the comment
-    await Comment.findByIdAndDelete(commentId);
-    
-    // Remove comment reference from post's comments array and decrement commentsCount
-    await Post.findByIdAndUpdate(
-      postId,
-      { 
-        $pull: { comments: commentId },
-        $inc: { commentsCount: -1 }
-      }
-    );
+    // Remove the comment
+    post.comments.pull(commentId);
+    await post.save();
     
     res.status(200).json({ message: 'Comment deleted successfully' });
   } catch (error) {
@@ -409,7 +381,7 @@ const searchPosts = async (req, res) => {
     // Set up sort options
     let sortQuery = {};
     if (sortOption === 'popular') {
-      sortQuery = { likesCount: -1, createdAt: -1 };
+      sortQuery = { likes: -1, createdAt: -1 }; // Sort by number of likes
     } else {
       sortQuery = { createdAt: -1 }; // Default sort by most recent
     }
@@ -427,14 +399,7 @@ const searchPosts = async (req, res) => {
       ]
     })
       .sort(sortQuery)
-      .populate('user', 'name email profilePicture')
-      .populate({
-        path: 'comments',
-        populate: {
-          path: 'user',
-          select: 'name profilePicture'
-        }
-      });
+      .populate('user', 'name email profilePicture');
     
     // Get userId from request if available
     const userId = req.user ? req.user.id : null;
@@ -451,7 +416,7 @@ const searchPosts = async (req, res) => {
     
     res.status(200).json({
       posts: processedPosts,
-      totalPages: 1, // For simplicity, no pagination in search results
+      totalPosts: processedPosts.length,
       query
     });
   } catch (error) {
@@ -494,9 +459,6 @@ const getPostsByLandmark = async (req, res) => {
   }
 };
 
-// Use the isAuthenticated middleware from authMiddleware.js
-const { isAuthenticated } = require('../middleware/authMiddleware');
-
 module.exports = {
   createPost, 
   getAllPosts, 
@@ -510,6 +472,5 @@ module.exports = {
   deleteComment, 
   searchPosts,
   getPostsByLocation,
-  getPostsByLandmark,
-  isAuthenticated // Export the middleware
+  getPostsByLandmark
 };
