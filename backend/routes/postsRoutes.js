@@ -14,18 +14,17 @@ const {
   deleteComment, 
   searchPosts,
   getPostsByLocation,
-  getPostsByLandmark,
-  isAuthenticated  // Use the middleware from postsController
+  getPostsByLandmark
 } = require('../controllers/postsController');
 
-// Import authenticateToken from authMiddleware instead
-const { authenticateToken } = require('../middleware/authMiddleware');
+// Import middleware from authMiddleware
+const { authenticateToken, isAuthenticated } = require('../middleware/authMiddleware');
 
-// Public routes (no authentication required)
-router.get('/posts', getAllPosts);
-router.get('/posts/:id', getPostById);
+// Public routes (no authentication required, but user authentication status is checked)
+router.get('/posts', isAuthenticated, getAllPosts);
+router.get('/posts/:id', isAuthenticated, getPostById);
 router.get('/posts/user/:userId', getUserPosts);
-router.get('/search', searchPosts);
+router.get('/search', isAuthenticated, searchPosts);
 router.get('/location/:location', getPostsByLocation);
 router.get('/landmark/:landmark', getPostsByLandmark);
 

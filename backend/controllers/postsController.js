@@ -1,26 +1,75 @@
-const Post = require('../models/post');
+// controllers/postsController.js
+const Post = require('../models/Post');
 const User = require('../models/User');
+const Comment = require('../models/Comment');
 
-// Authentication middleware
-const isAuthenticated = (req, res, next) => {
-  if (!req.session.user) {
-    return res.status(401).json({ message: 'Authentication required' });
+// Get all posts with pagination, sorting, and user authentication status
+const getAllPosts = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const sortOption = req.query.sort || 'recent';
+    
+    // Set up sort options
+    let sortQuery = {};
+    if (sortOption === 'popular') {
+      sortQuery = { likesCount: -1, createdAt: -1 };
+    } else {
+      sortQuery = { createdAt: -1 }; // Default sort by most recent
+    }
+    
+    // Get userId from request if available
+    const userId = req.user ? req.user.id : null;
+    
+    // Get total count of posts
+    const totalPosts = await Post.countDocuments();
+    const totalPages = Math.ceil(totalPosts / limit);
+    
+    // Query posts with pagination and sorting
+    let posts = await Post.find()
+      .sort(sortQuery)
+      .skip(skip)
+      .limit(limit)
+      .populate('user', 'name email profilePicture')
+      .populate({
+        path: 'comments',
+        options: { sort: { createdAt: -1 } },
+        populate: {
+          path: 'user',
+          select: 'name profilePicture'
+        }
+      });
+    
+    // If user is authenticated, mark which posts they have liked
+    if (userId) {
+      posts = posts.map(post => {
+        const postObj = post.toObject();
+        postObj.isLiked = post.likes.includes(userId);
+        return postObj;
+      });
+    }
+    
+    res.status(200).json({
+      posts,
+      currentPage: page,
+      totalPages,
+      totalPosts
+    });
+  } catch (error) {
+    console.error('Error fetching posts:', error);
+    res.status(500).json({ message: 'Failed to fetch posts', error: error.message });
   }
-  next();
 };
 
-// Modified createPost function to check req.user (set by authenticateToken) instead of req.session.user
+// Create a new post
 const createPost = async (req, res) => {
   try {
-    // Check either req.user (set by JWT auth) or req.session.user (set by session auth)
-    if (!req.user && !req.session?.user) {
-      return res.status(401).json({ message: 'Login required to create posts' });
-    }
-
-    const userId = req.user?.id || req.session?.user?.id;
-    if (!userId) {
-      return res.status(401).json({ message: 'User ID not found in authentication' });
-    }
+    // Get user ID from the authenticated request
+    // This is set by the authenticateToken middleware
+    const userId = req.user.id;
+    
+    console.log('Creating post for user:', userId);
 
     const { title, content, mediaType, mediaUrl, location, landmark } = req.body;
 
@@ -48,6 +97,7 @@ const createPost = async (req, res) => {
     });
 
     const savedPost = await newPost.save();
+    console.log('Post saved:', savedPost._id);
 
     // Add post to user's posts array
     await User.findByIdAndUpdate(
@@ -62,139 +112,78 @@ const createPost = async (req, res) => {
   }
 };
 
-// Get all posts with pagination (visible to all users)
-const getAllPosts = async (req, res) => {
-  try {
-    const { page = 1, limit = 10, sort = 'recent' } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    let sortOption = {};
-    
-    // Sorting logic
-    switch (sort) {
-      case 'popular':
-        // Sort by likes count and then by date
-        sortOption = { 'likes.length': -1, createdAt: -1 };
-        break;
-      case 'recent':
-      default:
-        // Sort by date (newest first)
-        sortOption = { createdAt: -1 };
-        break;
-    }
-
-    const posts = await Post.find()
-      .sort(sortOption)
-      .skip(skip)
-      .limit(parseInt(limit))
-      .populate('user', 'name profilePicture')
-      .populate('comments.user', 'name profilePicture')
-      .lean();
-
-    const total = await Post.countDocuments();
-
-    // Add likes count to each post
-    const postsWithCounts = posts.map(post => ({
-      ...post,
-      likesCount: post.likes.length,
-      commentsCount: post.comments.length
-    }));
-
-    res.status(200).json({
-      posts: postsWithCounts,
-      totalPages: Math.ceil(total / parseInt(limit)),
-      currentPage: parseInt(page)
-    });
-  } catch (error) {
-    console.error('Error fetching posts:', error);
-    res.status(500).json({ message: 'Failed to fetch posts', error: error.message });
-  }
-};
-
-// Get a single post by ID
+// Get a specific post by ID
 const getPostById = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
-      .populate('user', 'name profilePicture')
-      .populate('comments.user', 'name profilePicture')
-      .lean();
-
+      .populate('user', 'name email profilePicture')
+      .populate({
+        path: 'comments',
+        populate: {
+          path: 'user',
+          select: 'name profilePicture'
+        }
+      });
+    
     if (!post) {
       return res.status(404).json({ message: 'Post not found' });
     }
-
-    // Add likes count
-    post.likesCount = post.likes.length;
-    post.commentsCount = post.comments.length;
-
-    res.status(200).json(post);
+    
+    // If user is authenticated, check if they've liked the post
+    if (req.user) {
+      const postObj = post.toObject();
+      postObj.isLiked = post.likes.includes(req.user.id);
+      res.status(200).json(postObj);
+    } else {
+      res.status(200).json(post);
+    }
   } catch (error) {
     console.error('Error fetching post:', error);
     res.status(500).json({ message: 'Failed to fetch post', error: error.message });
   }
 };
 
-// Get posts by user ID
+// Get all posts by a specific user
 const getUserPosts = async (req, res) => {
   try {
-    const { userId } = req.params;
-    const { page = 1, limit = 10 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
+    const userId = req.params.userId;
+    
     const posts = await Post.find({ user: userId })
       .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit))
-      .populate('user', 'name profilePicture')
-      .lean();
-
-    const total = await Post.countDocuments({ user: userId });
-
-    // Add counts
-    const postsWithCounts = posts.map(post => ({
-      ...post,
-      likesCount: post.likes.length,
-      commentsCount: post.comments.length
-    }));
-
-    res.status(200).json({
-      posts: postsWithCounts,
-      totalPages: Math.ceil(total / parseInt(limit)),
-      currentPage: parseInt(page)
-    });
+      .populate('user', 'name email profilePicture');
+    
+    res.status(200).json(posts);
   } catch (error) {
     console.error('Error fetching user posts:', error);
     res.status(500).json({ message: 'Failed to fetch user posts', error: error.message });
   }
 };
 
-// Update a post (only by the post owner)
+// Update a post
 const updatePost = async (req, res) => {
   try {
-    if (!req.session.user) {
-      return res.status(401).json({ message: 'Authentication required' });
-    }
-
-    const post = await Post.findById(req.params.id);
-
+    const postId = req.params.id;
+    const userId = req.user.id;
+    
+    // Find the post
+    const post = await Post.findById(postId);
+    
     if (!post) {
       return res.status(404).json({ message: 'Post not found' });
     }
-
-    // Check if user is the post owner
-    if (post.user.toString() !== req.session.user.id) {
-      return res.status(403).json({ message: 'Unauthorized: You can only update your own posts' });
-    }
-
-    const { title, content, location, landmark } = req.body;
     
-    // Only update fields that are provided
-    if (title !== undefined) post.title = title;
-    if (content !== undefined) post.content = content;
-    if (location !== undefined) post.location = location;
-    if (landmark !== undefined) post.landmark = landmark;
-
-    const updatedPost = await post.save();
+    // Check if the user is the owner of the post
+    if (post.user.toString() !== userId) {
+      return res.status(403).json({ message: 'You can only update your own posts' });
+    }
+    
+    // Update the post
+    const updatedPost = await Post.findByIdAndUpdate(
+      postId,
+      { $set: req.body },
+      { new: true }
+    );
+    
     res.status(200).json(updatedPost);
   } catch (error) {
     console.error('Error updating post:', error);
@@ -202,32 +191,36 @@ const updatePost = async (req, res) => {
   }
 };
 
-// Delete a post (only by the post owner)
+// Delete a post
 const deletePost = async (req, res) => {
   try {
-    if (!req.session.user) {
-      return res.status(401).json({ message: 'Authentication required' });
-    }
-
-    const post = await Post.findById(req.params.id);
-
+    const postId = req.params.id;
+    const userId = req.user.id;
+    
+    // Find the post
+    const post = await Post.findById(postId);
+    
     if (!post) {
       return res.status(404).json({ message: 'Post not found' });
     }
-
-    // Check if user is the post owner
-    if (post.user.toString() !== req.session.user.id) {
-      return res.status(403).json({ message: 'Unauthorized: You can only delete your own posts' });
+    
+    // Check if the user is the owner of the post
+    if (post.user.toString() !== userId) {
+      return res.status(403).json({ message: 'You can only delete your own posts' });
     }
-
-    await Post.findByIdAndDelete(req.params.id);
-
-    // Remove post from user's posts array
+    
+    // Delete all comments associated with the post
+    await Comment.deleteMany({ post: postId });
+    
+    // Delete the post
+    await Post.findByIdAndDelete(postId);
+    
+    // Remove post reference from user's posts array
     await User.findByIdAndUpdate(
-      req.session.user.id,
-      { $pull: { posts: req.params.id } }
+      userId,
+      { $pull: { posts: postId } }
     );
-
+    
     res.status(200).json({ message: 'Post deleted successfully' });
   } catch (error) {
     console.error('Error deleting post:', error);
@@ -238,32 +231,35 @@ const deletePost = async (req, res) => {
 // Like a post
 const likePost = async (req, res) => {
   try {
-    if (!req.session.user) {
-      return res.status(401).json({ message: 'Authentication required to like posts' });
-    }
-
-    const post = await Post.findById(req.params.id);
-
+    const postId = req.params.id;
+    const userId = req.user.id;
+    
+    // Find the post
+    const post = await Post.findById(postId);
+    
     if (!post) {
       return res.status(404).json({ message: 'Post not found' });
     }
-
-    // Check if user already liked the post
-    if (post.likes.includes(req.session.user.id)) {
-      return res.status(400).json({ message: 'Post already liked' });
+    
+    // Check if the user already liked the post
+    if (post.likes.includes(userId)) {
+      return res.status(400).json({ message: 'You have already liked this post' });
     }
-
-    // Add user to likes array
-    post.likes.push(req.session.user.id);
-    await post.save();
-
-    // Add post to user's liked posts
-    await User.findByIdAndUpdate(
-      req.session.user.id,
-      { $push: { likedPosts: req.params.id } }
+    
+    // Add user to post's likes array and increment likesCount
+    const updatedPost = await Post.findByIdAndUpdate(
+      postId,
+      { 
+        $push: { likes: userId },
+        $inc: { likesCount: 1 }
+      },
+      { new: true }
     );
-
-    res.status(200).json({ message: 'Post liked successfully', likesCount: post.likes.length });
+    
+    res.status(200).json({ 
+      message: 'Post liked successfully',
+      likesCount: updatedPost.likesCount
+    });
   } catch (error) {
     console.error('Error liking post:', error);
     res.status(500).json({ message: 'Failed to like post', error: error.message });
@@ -273,32 +269,35 @@ const likePost = async (req, res) => {
 // Unlike a post
 const unlikePost = async (req, res) => {
   try {
-    if (!req.session.user) {
-      return res.status(401).json({ message: 'Authentication required to unlike posts' });
-    }
-
-    const post = await Post.findById(req.params.id);
-
+    const postId = req.params.id;
+    const userId = req.user.id;
+    
+    // Find the post
+    const post = await Post.findById(postId);
+    
     if (!post) {
       return res.status(404).json({ message: 'Post not found' });
     }
-
-    // Check if user has liked the post
-    if (!post.likes.includes(req.session.user.id)) {
-      return res.status(400).json({ message: 'Post was not liked by the user' });
+    
+    // Check if the user has liked the post
+    if (!post.likes.includes(userId)) {
+      return res.status(400).json({ message: 'You have not liked this post' });
     }
-
-    // Remove user from likes array
-    post.likes = post.likes.filter(userId => userId.toString() !== req.session.user.id);
-    await post.save();
-
-    // Remove post from user's liked posts
-    await User.findByIdAndUpdate(
-      req.session.user.id,
-      { $pull: { likedPosts: req.params.id } }
+    
+    // Remove user from post's likes array and decrement likesCount
+    const updatedPost = await Post.findByIdAndUpdate(
+      postId,
+      { 
+        $pull: { likes: userId },
+        $inc: { likesCount: -1 }
+      },
+      { new: true }
     );
-
-    res.status(200).json({ message: 'Post unliked successfully', likesCount: post.likes.length });
+    
+    res.status(200).json({ 
+      message: 'Post unliked successfully',
+      likesCount: updatedPost.likesCount
+    });
   } catch (error) {
     console.error('Error unliking post:', error);
     res.status(500).json({ message: 'Failed to unlike post', error: error.message });
@@ -308,40 +307,46 @@ const unlikePost = async (req, res) => {
 // Add a comment to a post
 const addComment = async (req, res) => {
   try {
-    if (!req.session.user) {
-      return res.status(401).json({ message: 'Authentication required to comment' });
-    }
-
+    const postId = req.params.id;
+    const userId = req.user.id;
     const { text } = req.body;
-
+    
     if (!text || text.trim() === '') {
       return res.status(400).json({ message: 'Comment text is required' });
     }
-
-    const post = await Post.findById(req.params.id);
-
+    
+    // Find the post
+    const post = await Post.findById(postId);
+    
     if (!post) {
       return res.status(404).json({ message: 'Post not found' });
     }
-
-    const newComment = {
-      user: req.session.user.id,
-      text: text.trim()
-    };
-
-    post.comments.push(newComment);
-    await post.save();
-
-    // Fetch user details for the new comment
-    const populatedPost = await Post.findById(req.params.id)
-      .populate('comments.user', 'name profilePicture');
-
-    const addedComment = populatedPost.comments[populatedPost.comments.length - 1];
-
-    res.status(201).json({
+    
+    // Create a new comment
+    const newComment = new Comment({
+      user: userId,
+      post: postId,
+      text
+    });
+    
+    const savedComment = await newComment.save();
+    
+    // Add comment to post's comments array and increment commentsCount
+    await Post.findByIdAndUpdate(
+      postId,
+      { 
+        $push: { comments: savedComment._id },
+        $inc: { commentsCount: 1 }
+      }
+    );
+    
+    // Populate user data in the saved comment
+    const populatedComment = await Comment.findById(savedComment._id)
+      .populate('user', 'name profilePicture');
+    
+    res.status(201).json({ 
       message: 'Comment added successfully',
-      comment: addedComment,
-      commentsCount: post.comments.length
+      comment: populatedComment
     });
   } catch (error) {
     console.error('Error adding comment:', error);
@@ -352,106 +357,102 @@ const addComment = async (req, res) => {
 // Delete a comment
 const deleteComment = async (req, res) => {
   try {
-    if (!req.session.user) {
-      return res.status(401).json({ message: 'Authentication required' });
-    }
-
     const { postId, commentId } = req.params;
-
-    const post = await Post.findById(postId);
-
-    if (!post) {
-      return res.status(404).json({ message: 'Post not found' });
-    }
-
-    const comment = post.comments.id(commentId);
-
+    const userId = req.user.id;
+    
+    // Find the comment
+    const comment = await Comment.findById(commentId);
+    
     if (!comment) {
       return res.status(404).json({ message: 'Comment not found' });
     }
-
-    // Check if user is comment owner or post owner
-    if (comment.user.toString() !== req.session.user.id && 
-        post.user.toString() !== req.session.user.id) {
-      return res.status(403).json({ 
-        message: 'Unauthorized: You can only delete your own comments or comments on your posts' 
-      });
+    
+    // Check if the user is the owner of the comment
+    if (comment.user.toString() !== userId) {
+      // Check if the user is the owner of the post
+      const post = await Post.findById(postId);
+      
+      if (!post || post.user.toString() !== userId) {
+        return res.status(403).json({ message: 'You can only delete your own comments or comments on your posts' });
+      }
     }
-
-    comment.remove();
-    await post.save();
-
-    res.status(200).json({ 
-      message: 'Comment deleted successfully',
-      commentsCount: post.comments.length
-    });
+    
+    // Delete the comment
+    await Comment.findByIdAndDelete(commentId);
+    
+    // Remove comment reference from post's comments array and decrement commentsCount
+    await Post.findByIdAndUpdate(
+      postId,
+      { 
+        $pull: { comments: commentId },
+        $inc: { commentsCount: -1 }
+      }
+    );
+    
+    res.status(200).json({ message: 'Comment deleted successfully' });
   } catch (error) {
     console.error('Error deleting comment:', error);
     res.status(500).json({ message: 'Failed to delete comment', error: error.message });
   }
 };
 
-// Search posts by location, landmark, or title
+// Search posts
 const searchPosts = async (req, res) => {
   try {
-    const { query, page = 1, limit = 10, sort = 'relevant' } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    if (!query || query.trim() === '') {
+    const query = req.query.query;
+    const sortOption = req.query.sort || 'recent';
+    
+    if (!query) {
       return res.status(400).json({ message: 'Search query is required' });
     }
-
-    // Create search conditions
-    const searchConditions = {
-      $or: [
-        { location: { $regex: query, $options: 'i' } },
-        { landmark: { $regex: query, $options: 'i' } },
-        { title: { $regex: query, $options: 'i' } },
-        { content: { $regex: query, $options: 'i' } }
-      ]
-    };
-
-    let sortOption = {};
     
-    // Sorting logic
-    switch (sort) {
-      case 'popular':
-        // Sort by likes count and then by date
-        sortOption = { 'likes.length': -1, createdAt: -1 };
-        break;
-      case 'recent':
-        // Sort by date (newest first)
-        sortOption = { createdAt: -1 };
-        break;
-      case 'relevant':
-      default:
-        // For text relevance, MongoDB text index score would be ideal
-        // But we're using regex for flexibility, so we'll use a combination
-        sortOption = { 'likes.length': -1, createdAt: -1 };
-        break;
+    // Set up sort options
+    let sortQuery = {};
+    if (sortOption === 'popular') {
+      sortQuery = { likesCount: -1, createdAt: -1 };
+    } else {
+      sortQuery = { createdAt: -1 }; // Default sort by most recent
     }
-
-    const posts = await Post.find(searchConditions)
-      .sort(sortOption)
-      .skip(skip)
-      .limit(parseInt(limit))
-      .populate('user', 'name profilePicture')
-      .lean();
-
-    const total = await Post.countDocuments(searchConditions);
-
-    // Add counts for each post
-    const postsWithCounts = posts.map(post => ({
-      ...post,
-      likesCount: post.likes.length,
-      commentsCount: post.comments.length
-    }));
-
+    
+    // Create regex for case-insensitive search
+    const searchRegex = new RegExp(query, 'i');
+    
+    // Search in title, content, location, and landmark
+    const posts = await Post.find({
+      $or: [
+        { title: searchRegex },
+        { content: searchRegex },
+        { location: searchRegex },
+        { landmark: searchRegex }
+      ]
+    })
+      .sort(sortQuery)
+      .populate('user', 'name email profilePicture')
+      .populate({
+        path: 'comments',
+        populate: {
+          path: 'user',
+          select: 'name profilePicture'
+        }
+      });
+    
+    // Get userId from request if available
+    const userId = req.user ? req.user.id : null;
+    
+    // If user is authenticated, mark which posts they have liked
+    let processedPosts = posts;
+    if (userId) {
+      processedPosts = posts.map(post => {
+        const postObj = post.toObject();
+        postObj.isLiked = post.likes.includes(userId);
+        return postObj;
+      });
+    }
+    
     res.status(200).json({
-      posts: postsWithCounts,
-      totalPages: Math.ceil(total / parseInt(limit)),
-      currentPage: parseInt(page),
-      totalResults: total
+      posts: processedPosts,
+      totalPages: 1, // For simplicity, no pagination in search results
+      query
     });
   } catch (error) {
     console.error('Error searching posts:', error);
@@ -462,45 +463,14 @@ const searchPosts = async (req, res) => {
 // Get posts by location
 const getPostsByLocation = async (req, res) => {
   try {
-    const { location } = req.params;
-    const { page = 1, limit = 10, sort = 'recent' } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    let sortOption = {};
+    const location = req.params.location;
+    const locationRegex = new RegExp(location, 'i');
     
-    // Sorting logic - similar to searchPosts
-    switch (sort) {
-      case 'popular':
-        sortOption = { 'likes.length': -1, createdAt: -1 };
-        break;
-      case 'recent':
-      default:
-        sortOption = { createdAt: -1 };
-        break;
-    }
-
-    const posts = await Post.find({ location: { $regex: location, $options: 'i' } })
-      .sort(sortOption)
-      .skip(skip)
-      .limit(parseInt(limit))
-      .populate('user', 'name profilePicture')
-      .lean();
-
-    const total = await Post.countDocuments({ location: { $regex: location, $options: 'i' } });
-
-    // Add counts
-    const postsWithCounts = posts.map(post => ({
-      ...post,
-      likesCount: post.likes.length,
-      commentsCount: post.comments.length
-    }));
-
-    res.status(200).json({
-      posts: postsWithCounts,
-      totalPages: Math.ceil(total / parseInt(limit)),
-      currentPage: parseInt(page),
-      totalResults: total
-    });
+    const posts = await Post.find({ location: locationRegex })
+      .sort({ createdAt: -1 })
+      .populate('user', 'name email profilePicture');
+    
+    res.status(200).json(posts);
   } catch (error) {
     console.error('Error fetching posts by location:', error);
     res.status(500).json({ message: 'Failed to fetch posts by location', error: error.message });
@@ -510,64 +480,36 @@ const getPostsByLocation = async (req, res) => {
 // Get posts by landmark
 const getPostsByLandmark = async (req, res) => {
   try {
-    const { landmark } = req.params;
-    const { page = 1, limit = 10, sort = 'recent' } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    let sortOption = {};
+    const landmark = req.params.landmark;
+    const landmarkRegex = new RegExp(landmark, 'i');
     
-    // Sorting logic
-    switch (sort) {
-      case 'popular':
-        sortOption = { 'likes.length': -1, createdAt: -1 };
-        break;
-      case 'recent':
-      default:
-        sortOption = { createdAt: -1 };
-        break;
-    }
-
-    const posts = await Post.find({ landmark: { $regex: landmark, $options: 'i' } })
-      .sort(sortOption)
-      .skip(skip)
-      .limit(parseInt(limit))
-      .populate('user', 'name profilePicture')
-      .lean();
-
-    const total = await Post.countDocuments({ landmark: { $regex: landmark, $options: 'i' } });
-
-    // Add counts
-    const postsWithCounts = posts.map(post => ({
-      ...post,
-      likesCount: post.likes.length,
-      commentsCount: post.comments.length
-    }));
-
-    res.status(200).json({
-      posts: postsWithCounts,
-      totalPages: Math.ceil(total / parseInt(limit)),
-      currentPage: parseInt(page),
-      totalResults: total
-    });
+    const posts = await Post.find({ landmark: landmarkRegex })
+      .sort({ createdAt: -1 })
+      .populate('user', 'name email profilePicture');
+    
+    res.status(200).json(posts);
   } catch (error) {
     console.error('Error fetching posts by landmark:', error);
     res.status(500).json({ message: 'Failed to fetch posts by landmark', error: error.message });
   }
 };
 
+// Use the isAuthenticated middleware from authMiddleware.js
+const { isAuthenticated } = require('../middleware/authMiddleware');
+
 module.exports = {
-  createPost,
-  getAllPosts,
-  getPostById,
+  createPost, 
+  getAllPosts, 
+  getPostById, 
   getUserPosts,
-  updatePost,
-  deletePost,
-  likePost,
-  unlikePost,
-  addComment,
-  deleteComment,
+  updatePost, 
+  deletePost, 
+  likePost, 
+  unlikePost, 
+  addComment, 
+  deleteComment, 
   searchPosts,
   getPostsByLocation,
   getPostsByLandmark,
-  isAuthenticated
+  isAuthenticated // Export the middleware
 };

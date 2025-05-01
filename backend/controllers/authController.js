@@ -118,7 +118,7 @@ const login = async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // Create user data for token and session
+    // Create user data for response
     const userData = {
       id: user._id,
       name: user.name,
@@ -126,19 +126,21 @@ const login = async (req, res) => {
       isVerified: user.isVerified
     };
 
-    // Set user in session (for web browser clients)
-    req.session.user = userData;
-
-    // Generate JWT token (for API clients like Postman)
+    // Generate JWT token
     const token = generateToken(user._id);
-
+    
+    // Set user ID in session
+    req.session.userId = user._id;
+    
+    // Send response with token and user data
     res.status(200).json({
       message: 'Login successful',
       user: userData,
-      token: token // Return the token to the client
+      token: token
     });
 
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({ message: 'Something went wrong', error: error.message });
   }
 };
@@ -156,12 +158,14 @@ const logout = (req, res) => {
 // Get current logged-in user info
 const getCurrentUser = async (req, res) => {
   try {
-    // req.user is set by the authenticateToken middleware
-    if (!req.user || !req.user.id) {
+    // Check if user is authenticated
+    const userId = req.user ? req.user.id : (req.session ? req.session.userId : null);
+    
+    if (!userId) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
 
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await User.findById(userId).select('-password');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
