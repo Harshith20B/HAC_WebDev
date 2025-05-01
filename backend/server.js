@@ -3,14 +3,13 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const path = require('path');
-const session = require('express-session');
 const authRoutes = require('./routes/authRoutes');
 const landmarkRoutes = require('./routes/landmarkRoutes');
 const exploreRoutes = require('./routes/exploreRoutes');
 const productRoutes = require('./routes/productRoutes');
 const travelPlanRoutes = require('./routes/travelPlanRoutes');
 const userRoutes = require('./routes/userRoutes');
-const postsRoutes = require('./routes/postsRoutes'); // Add the new posts routes
+const postsRoutes = require('./routes/postsRoutes');
 
 dotenv.config();
 const app = express();
@@ -23,7 +22,7 @@ const corsOptions = {
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,  // Enable credentials (cookies, authorization headers)
+  credentials: true,  // Enable credentials (authorization headers)
   optionsSuccessStatus: 200
 };
 
@@ -34,20 +33,6 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 app.use(express.json({ limit: '50mb' })); // Increased limit for handling media
-
-// Add session middleware with secure configuration
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || 'your_secret_key',
-    resave: false,
-    saveUninitialized: false,
-    cookie: { 
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',  // Required for cross-origin cookies
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }
-  })
-);
 
 // Add security headers middleware
 app.use((req, res, next) => {

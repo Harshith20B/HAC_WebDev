@@ -129,9 +129,6 @@ const login = async (req, res) => {
     // Generate JWT token
     const token = generateToken(user._id);
     
-    // Set user ID in session
-    req.session.userId = user._id;
-    
     // Send response with token and user data
     res.status(200).json({
       message: 'Login successful',
@@ -146,25 +143,17 @@ const login = async (req, res) => {
 };
 
 const logout = (req, res) => {
-  try {
-    req.session.destroy(() => {
-      res.status(200).json({ message: 'Logout successful' });
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Something went wrong', error: error.message });
-  }
+  // With JWT, we don't need server-side logout logic
+  // The client should discard the token
+  res.status(200).json({ message: 'Logout successful' });
 };
 
 // Get current logged-in user info
 const getCurrentUser = async (req, res) => {
   try {
-    // Check if user is authenticated
-    const userId = req.user ? req.user.id : (req.session ? req.session.userId : null);
+    // Get user ID from the authenticated request (set by middleware)
+    const userId = req.user.id;
     
-    if (!userId) {
-      return res.status(401).json({ message: 'Not authenticated' });
-    }
-
     const user = await User.findById(userId).select('-password');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
