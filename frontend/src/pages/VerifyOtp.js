@@ -7,7 +7,7 @@ const VerifyOtp = () => {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://hac-webdev-2.onrender.com/api';
   // Handle OTP input change
   const handleChange = (e) => {
     setOtp(e.target.value);
@@ -24,7 +24,7 @@ const VerifyOtp = () => {
       const email = localStorage.getItem('email');
 
       // Send OTP to backend for verification
-      const response = await axios.post('https://hac-webdev-2.onrender.com/api/auth/verify-otp', { otp, email });
+      const response = await axios.post(`${API_BASE_URL}/auth/verify-otp`, { otp, email });
 
       navigate('/login');  // Redirect to login page after successful OTP verification
     } catch (error) {

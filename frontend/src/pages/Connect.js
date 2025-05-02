@@ -7,11 +7,11 @@ const Connect = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://hac-webdev-2.onrender.com/api';
   const fetchTravelPlans = async () => {
     try {
       setLoading(true);
-      const response = await fetch('https://hac-webdev-2.onrender.com/api/travelplans');
+      const response = await fetch(`${API_BASE_URL}/travelplans`);
       if (!response.ok) {
         throw new Error('Failed to fetch travel plans');
       }

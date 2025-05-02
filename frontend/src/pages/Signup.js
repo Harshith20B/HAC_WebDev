@@ -8,7 +8,7 @@ const Signup = () => {
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState('');
-
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://hac-webdev-2.onrender.com/api';
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -22,7 +22,7 @@ const Signup = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post('https://hac-webdev-2.onrender.com/api/auth/signup', formData);
+      const response = await axios.post(`${API_BASE_URL}/auth/signup`, formData);
       localStorage.setItem('email', formData.email);
       setOtpSent(true);
       navigate('/verify-otp');
@@ -39,7 +39,7 @@ const Signup = () => {
 
     try {
       const email = localStorage.getItem('email');
-      const response = await axios.post('http://localhost:5000/api/auth/verify-otp', { otp, email });
+      const response = await axios.post(`${API_BASE_URL}/auth/verify-otp`, { otp, email });
       navigate('/login');
     } catch (error) {
       alert(error.response?.data?.message || 'Something went wrong.');

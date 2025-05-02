@@ -11,11 +11,11 @@ function SearchResultsPage() {
   const searchParams = new URLSearchParams(location.search);
   const searchLocation = searchParams.get('location');
   const searchRadius = searchParams.get('radius');
-
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://hac-webdev-2.onrender.com/api';
   useEffect(() => {
     const fetchLandmarks = async () => {
       try {
-        const response = await axios.get(`https://hac-webdev-2.onrender.com/api/explore/search`, {
+        const response = await axios.get(`${API_BASE_URL}/explore/search`, {
           params: { location: searchLocation, radius: searchRadius },
         });
         

@@ -15,13 +15,13 @@ const TravelForm = () => {
     email: '',
   });
   const [error, setError] = useState('');
-
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://hac-webdev-2.onrender.com/api';
   const handleAddTravelPlan = async (e) => {
     e.preventDefault();
     setError('');
 
     try {
-      const response = await fetch('https://hac-webdev-2.onrender.com/api/travelplans', {
+      const response = await fetch(`${API_BASE_URL}/travelplans`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

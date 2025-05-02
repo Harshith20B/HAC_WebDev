@@ -11,21 +11,22 @@ const generateToken = (userId) => {
   );
 };
 
-// Middleware to verify JWT token and protect routes
 const authenticateToken = (req, res, next) => {
-  // Get the token from the Authorization header
-  const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.split(' ')[1]; // Format: "Bearer TOKEN"
-
-  if (!token) {
-    return res.status(401).json({ message: 'Access denied. No token provided.' });
+  const authHeader = req.headers['authorization'];
+  if (!authHeader) {
+    return res.status(401).json({ message: 'No Authorization header provided' });
   }
 
+  const parts = authHeader.split(' ');
+  if (parts.length !== 2 || parts[0] !== 'Bearer') {
+    return res.status(403).json({ message: 'Invalid Authorization header format' });
+  }
+
+  const token = parts[1];
+  console.log('Verifying token:', token);
+
   try {
-    // Verify the token
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
-    
-    // Set user information in the request
     req.user = { id: decoded.id };
     next();
   } catch (error) {
@@ -33,6 +34,7 @@ const authenticateToken = (req, res, next) => {
     return res.status(403).json({ message: 'Invalid or expired token.' });
   }
 };
+
 
 // Optional authentication middleware - doesn't require authentication but adds user info if available
 const isAuthenticated = (req, res, next) => {

@@ -6,13 +6,14 @@ import VerifyOtp from './pages/VerifyOtp';
 import HomePage from './pages/HomePage';
 import SearchResultsPage from './pages/SearchResultsPage';
 import Shops from './pages/ShopPage';
-// import Packages from './pages/PackagesPage';
 import Connect from './pages/Connect';
 import LandmarkDetails from './pages/LandmarkDetails';
 import DevisePlanPage from './pages/DevisePlanPage';
 import DarkModeToggle from './components/DarkModeToggle';
+import Posts from './pages/Posts'; 
 import axios from 'axios';
 import TravelForm from './pages/TravelForm';
+
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -22,7 +23,8 @@ function App() {
   const navigate = useNavigate();
 
   // Hardcoded API Base URL
-  const API_BASE_URL = 'https://hac-webdev-2.onrender.com/api'; // Change to your live backend URL when deployed
+ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://hac-webdev-2.onrender.com/api';
+
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -53,7 +55,22 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      await axios.post(`${API_BASE_URL}/auth/logout`); // Updated to use hardcoded base URL
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
+      
+      // With JWT, we just need to notify the backend of logout
+      // but we don't actually need to wait for a response
+      // since we'll clear the token client-side
+      axios.post(`${API_BASE_URL}/auth/logout`, {}, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }).catch(err => {
+        // Even if the server request fails, we still want to log out locally
+        console.log('Server logout notification failed, but continuing with client logout');
+      });
+      
+      // Clear local storage regardless of server response
       localStorage.removeItem('user');
       localStorage.removeItem('token');
       setIsLoggedIn(false);
@@ -61,8 +78,24 @@ function App() {
       navigate('/');
     } catch (error) {
       console.error('Logout failed:', error);
+      // Still clear local data even if there's an error
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      setIsLoggedIn(false);
+      setUser(null);
+      navigate('/');
     }
   };
+
+  // Configure axios default headers when token is available
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      delete axios.defaults.headers.common['Authorization'];
+    }
+  }, [isLoggedIn]);
 
   const toggleProfileMenu = () => setProfileMenuOpen(!profileMenuOpen);
 
@@ -88,9 +121,9 @@ function App() {
             <Link to="/shops" className="px-4 py-2 rounded hover:bg-opacity-80">
               Shops
             </Link>
-            {/* <Link to="/packages" className="px-4 py-2 rounded hover:bg-opacity-80">
-              Packages
-            </Link> */}
+            <Link to="/posts" className="px-4 py-2 rounded hover:bg-opacity-80">
+              Posts
+            </Link>
             <Link to="/connect" className="px-4 py-2 rounded hover:bg-opacity-80">
               Connect
             </Link>
@@ -140,7 +173,7 @@ function App() {
             </div>
             <Link to="/" className="block text-white py-2">Home</Link>
             <Link to="/shops" className="block text-white py-2">Shops</Link>
-            {/* <Link to="/packages" className="block text-white py-2">Packages</Link> */}
+            <Link to="/posts" className="block text-white py-2">Posts</Link>
             <Link to="/connect" className="block text-white py-2">Connect</Link>
             {isLoggedIn ? (
               <>
@@ -171,7 +204,7 @@ function App() {
           <Route path="/login" element={<Login setIsLoggedIn={setIsLoggedIn} setUser={setUser} />} />
           <Route path="/verify-otp" element={<VerifyOtp />} />
           <Route path="/shops" element={<Shops />} />
-          {/* <Route path="/packages" element={<Packages />} /> */}
+          <Route path="/posts" element={<Posts />} />
           <Route path="/connect" element={<Connect />} />
           <Route path="/landmark-details/:landmarkId" element={<LandmarkDetails />} />
           <Route path="/devise-plan" element={<DevisePlanPage />} />

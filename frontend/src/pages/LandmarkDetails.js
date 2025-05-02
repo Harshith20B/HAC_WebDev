@@ -7,13 +7,13 @@ function LandmarkDetails() {
   const [landmark, setLandmark] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [newReview, setNewReview] = useState("");
-
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://hac-webdev-2.onrender.com/api';
   useEffect(() => {
     const fetchLandmarkDetails = async () => {
       try {
-        const landmarkResponse = await axios.get(`https://hac-webdev-2.onrender.com/api/landmarks/${landmarkId}`);
+        const landmarkResponse = await axios.get(`${API_BASE_URL}/landmarks/${landmarkId}`);
         setLandmark(landmarkResponse.data);
-        const reviewsResponse = await axios.get(`https://hac-webdev-2.onrender.com/api/landmarks/${landmarkId}/reviews`);
+        const reviewsResponse = await axios.get(`${API_BASE_URL}/landmarks/${landmarkId}/reviews`);
         setReviews(reviewsResponse.data);
       } catch (error) {
         console.error("Error fetching landmark details or reviews:", error);
@@ -27,7 +27,7 @@ function LandmarkDetails() {
     if (newReview.trim() === "") return;
 
     try {
-      const response = await axios.post(`https://hac-webdev-2.onrender.com/api/landmarks/${landmarkId}/reviews`, {
+      const response = await axios.post(`${API_BASE_URL}/landmarks/${landmarkId}/reviews`, {
         review: newReview,
       });
       setReviews((prev) => [...prev, response.data]);

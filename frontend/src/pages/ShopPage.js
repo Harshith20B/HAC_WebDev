@@ -3,11 +3,11 @@ import axios from 'axios';
 
 function ShopPage() {
   const [products, setProducts] = useState([]);
-
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://hac-webdev-2.onrender.com/api';
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await axios.get('https://hac-webdev-2.onrender.com/api/products');
+        const response = await axios.get(`${API_BASE_URL}/products`);
         setProducts(response.data);
       } catch (error) {
         console.error("Error fetching products:", error);
