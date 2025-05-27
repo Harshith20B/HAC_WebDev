@@ -3,6 +3,7 @@ const Post = require('../models/Post');
 const User = require('../models/User');
 
 // Get all posts with pagination, sorting, and user authentication status
+// Fix for getAllPosts in postsController.js
 const getAllPosts = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -37,13 +38,15 @@ const getAllPosts = async (req, res) => {
     console.log(`Found ${posts.length} posts`);
     
     // If user is authenticated, mark which posts they have liked
-    if (userId) {
-      posts = posts.map(post => {
-        const postObj = post.toObject();
+    // Also add likesCount for all posts
+    posts = posts.map(post => {
+      const postObj = post.toObject();
+      if (userId) {
         postObj.isLiked = post.likes.includes(userId);
-        return postObj;
-      });
-    }
+      }
+      postObj.likesCount = post.likes.length; // Add this line to fix the like count
+      return postObj;
+    });
     
     res.status(200).json({
       posts,
@@ -108,7 +111,7 @@ const createPost = async (req, res) => {
   }
 };
 
-// Get a specific post by ID
+// Fix for getPostById in postsController.js
 const getPostById = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
@@ -118,14 +121,17 @@ const getPostById = async (req, res) => {
       return res.status(404).json({ message: 'Post not found' });
     }
     
+    const postObj = post.toObject();
+    
+    // Add likesCount for the post
+    postObj.likesCount = post.likes.length;
+    
     // If user is authenticated, check if they've liked the post
     if (req.user) {
-      const postObj = post.toObject();
       postObj.isLiked = post.likes.includes(req.user.id);
-      res.status(200).json(postObj);
-    } else {
-      res.status(200).json(post);
     }
+    
+    res.status(200).json(postObj);
   } catch (error) {
     console.error('Error fetching post:', error);
     res.status(500).json({ message: 'Failed to fetch post', error: error.message });
@@ -369,6 +375,7 @@ const deleteComment = async (req, res) => {
 };
 
 // Search posts
+// Fix for searchPosts in postsController.js
 const searchPosts = async (req, res) => {
   try {
     const query = req.query.query;
@@ -405,14 +412,15 @@ const searchPosts = async (req, res) => {
     const userId = req.user ? req.user.id : null;
     
     // If user is authenticated, mark which posts they have liked
-    let processedPosts = posts;
-    if (userId) {
-      processedPosts = posts.map(post => {
-        const postObj = post.toObject();
+    // Also add likesCount for all posts
+    const processedPosts = posts.map(post => {
+      const postObj = post.toObject();
+      if (userId) {
         postObj.isLiked = post.likes.includes(userId);
-        return postObj;
-      });
-    }
+      }
+      postObj.likesCount = post.likes.length; // Add this line to fix the like count
+      return postObj;
+    });
     
     res.status(200).json({
       posts: processedPosts,

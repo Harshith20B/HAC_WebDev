@@ -97,52 +97,77 @@ export default function PostsPage() {
     }
   };
 
-  // Handle like/unlike
-  const handleLike = async (postId, isLiked) => {
-    if (!isAuthenticated) {
-      setError('Please log in to like posts');
-      return;
-    }
+  // Handle like/unlike with proper toggling
+const handleLike = async (postId, isLiked) => {
+  if (!isAuthenticated) {
+    setError('Please log in to like posts');
+    return;
+  }
 
-    try {
-      const token = localStorage.getItem('token');
-      const endpoint = isLiked 
-        ? `${API_BASE_URL}/social/posts/${postId}/unlike` 
-        : `${API_BASE_URL}/social/posts/${postId}/like`;
+  try {
+    const token = localStorage.getItem('token');
+    const endpoint = isLiked 
+      ? `${API_BASE_URL}/social/posts/${postId}/unlike` 
+      : `${API_BASE_URL}/social/posts/${postId}/like`;
+    
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      // If the response is not OK, still get the error message
+      const errorData = await response.json();
       
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `HTTP error ${response.status}`);
+      // If the error is about already liking/not liking, just toggle the state
+      // instead of showing an error to the user
+      if (
+        (isLiked && errorData.message === 'You have not liked this post') ||
+        (!isLiked && errorData.message === 'You have already liked this post')
+      ) {
+        // Toggle the like state anyway
+        setPosts(posts.map(post => {
+          if (post._id === postId) {
+            const newLikesCount = isLiked ? (post.likesCount - 1) : (post.likesCount + 1);
+            return {
+              ...post,
+              likesCount: newLikesCount >= 0 ? newLikesCount : 0, // Ensure it doesn't go negative
+              isLiked: !isLiked
+            };
+          }
+          return post;
+        }));
+        return;
       }
       
-      // Update posts state to reflect the like/unlike action
-      setPosts(posts.map(post => {
-        if (post._id === postId) {
-          return {
-            ...post,
-            likesCount: isLiked ? post.likesCount - 1 : post.likesCount + 1,
-            isLiked: !isLiked
-          };
-        }
-        return post;
-      }));
-      
-      setError(null);
-    } catch (error) {
-      console.error("Error liking/unliking post:", error);
-      setError(error.message || "Error processing like/unlike. Please try again.");
+      throw new Error(errorData.message || `HTTP error ${response.status}`);
     }
-  };
-
+    
+    // Get the updated likesCount from the response
+    const data = await response.json();
+    
+    // Update posts state to reflect the like/unlike action
+    setPosts(posts.map(post => {
+      if (post._id === postId) {
+        return {
+          ...post,
+          likesCount: data.likesCount,  // Use the count from the server
+          isLiked: !isLiked
+        };
+      }
+      return post;
+    }));
+    
+    setError(null);
+  } catch (error) {
+    console.error("Error liking/unliking post:", error);
+    setError(error.message || "Error processing like/unlike. Please try again.");
+  }
+};
   // Toggle comments visibility
   const toggleComments = (postId) => {
     setExpandedComments(prev => ({
@@ -151,7 +176,7 @@ export default function PostsPage() {
     }));
   };
 
-  // Handle comment submission
+  // Handle comment submission with proper user display
   const handleAddComment = async (postId) => {
     if (!isAuthenticated) {
       setError('Please log in to comment');
@@ -179,13 +204,28 @@ export default function PostsPage() {
       
       const data = await response.json();
       
+      // Make sure we have the current user information
+      const currentUser = JSON.parse(localStorage.getItem('user')) || {};
+      
+      // Create a properly formatted comment object
+      const newCommentObj = {
+        _id: data.post.comments[data.post.comments.length - 1]._id, // Get ID of the latest comment
+        text: newComment[postId],
+        createdAt: new Date().toISOString(),
+        user: {
+          _id: currentUser.id || 'unknown',
+          name: currentUser.name || 'You',
+          profilePicture: currentUser.profilePicture || null
+        }
+      };
+      
       // Update posts state to include the new comment
       setPosts(posts.map(post => {
         if (post._id === postId) {
           return {
             ...post,
-            comments: [...(post.comments || []), data.comment],
-            commentsCount: post.commentsCount + 1
+            comments: [...(post.comments || []), newCommentObj],
+            commentsCount: (post.commentsCount || 0) + 1
           };
         }
         return post;
@@ -232,19 +272,15 @@ export default function PostsPage() {
         return;
       }
       
-      console.log('Sending post with token:', token);
-      
       const response = await fetch(`${API_BASE_URL}/social/posts`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`  // Make sure this header is included
+          'Authorization': `Bearer ${token}`
         },
         credentials: 'include',
         body: JSON.stringify(newPost)
       });
-      
-      console.log('Response status:', response.status);
       
       if (!response.ok) {
         if (response.status === 403) {
@@ -275,6 +311,13 @@ export default function PostsPage() {
     } catch (error) {
       console.error("Error creating post:", error);
       setError(error.message || "Failed to create post. Please ensure you are logged in.");
+    }
+  };
+
+  // Store user data in localStorage on login
+  const storeUserData = (userData) => {
+    if (userData && userData.user) {
+      localStorage.setItem('user', JSON.stringify(userData.user));
     }
   };
 
@@ -460,7 +503,7 @@ export default function PostsPage() {
                         size={18} 
                         className={post.isLiked ? 'fill-red-500' : ''} 
                       />
-                      <span className="ml-1 text-sm">{post.likesCount || 0}</span>
+                      <span className="ml-1 text-sm">{post.likesCount ?? post.likes?.length ?? 0}</span>
                     </button>
                     
                     <button 

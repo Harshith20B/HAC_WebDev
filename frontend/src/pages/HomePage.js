@@ -11,10 +11,10 @@ const HomePage = () => {
   const [landmarks, setLandmarks] = useState([]);
   const [isVisible, setIsVisible] = useState(false);
   const navigate = useNavigate();
-
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://hac-webdev-2.onrender.com/api';
   // Fetch landmarks from the database
   useEffect(() => {
-    axios.get('https://hac-webdev-2.onrender.com/api/landmarks')
+    axios.get(`${API_BASE_URL}/landmarks`)
       .then((response) => {
         setLandmarks(response.data);  // Assume landmarks are returned in an array
       })
