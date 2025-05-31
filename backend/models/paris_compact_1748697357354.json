@@ -1,0 +1,39 @@
+{
+  "days": [
+    {
+      "day": 1,
+      "morning": "Eiffel Tower (25)",
+      "afternoon": "Louvre Museum (17)",
+      "evening": "Seine River Cruise (20)"
+    },
+    {
+      "day": 2,
+      "morning": "Notre-Dame Cathedral (Free), walk to Île Saint-Louis",
+      "afternoon": "Latin Quarter exploration, lunch (30)",
+      "evening": "Montmartre, Sacré-Cœur Basilica (Free), dinner (40)"
+    },
+    {
+      "day": 3,
+      "morning": "Arc de Triomphe (13)",
+      "afternoon": "Champs-Élysées shopping, coffee (15)",
+      "evening": "Dinner near hotel (35)"
+    }
+  ],
+  "hotels": [
+    {
+      "name": "Ibis Budget Paris Porte de Montmartre",
+      "price": 210
+    }
+  ],
+  "transport": {
+    "daily": 7.5,
+    "total": 23
+  },
+  "summary": {
+    "accommodation": 210,
+    "food": 180,
+    "attractions": 80,
+    "transport": 23,
+    "total": 493
+  }
+}
