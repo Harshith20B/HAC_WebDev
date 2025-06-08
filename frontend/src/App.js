@@ -20,11 +20,28 @@ function App() {
   const [notificationShown, setNotificationShown] = useState(false);
   const [user, setUser] = useState(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(false); // Add dark mode state
   const navigate = useNavigate();
 
   // Hardcoded API Base URL
- const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://hac-webdev-2.onrender.com/api';
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://hac-webdev-2.onrender.com/api';
 
+  // Initialize dark mode from localStorage
+  useEffect(() => {
+    const savedDarkMode = localStorage.getItem('darkMode');
+    if (savedDarkMode) {
+      const isDark = savedDarkMode === 'true';
+      setDarkMode(isDark);
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      setDarkMode(true);
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -116,7 +133,7 @@ function App() {
   
           {/* Desktop Menu */}
           <div className="hidden lg:flex items-center space-x-4">
-            <DarkModeToggle />
+            <DarkModeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
   
             <Link to="/shops" className="px-4 py-2 rounded hover:bg-opacity-80">
               Shops
@@ -169,7 +186,7 @@ function App() {
         {isMenuOpen && (
           <div className="lg:hidden p-4 dark:bg-gray-900 bg-blue-700">
             <div className="py-2">
-              <DarkModeToggle />
+              <DarkModeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
             </div>
             <Link to="/" className="block text-white py-2">Home</Link>
             <Link to="/shops" className="block text-white py-2">Shops</Link>
@@ -204,7 +221,7 @@ function App() {
           <Route path="/login" element={<Login setIsLoggedIn={setIsLoggedIn} setUser={setUser} />} />
           <Route path="/verify-otp" element={<VerifyOtp />} />
           <Route path="/shops" element={<Shops />} />
-          <Route path="/posts" element={<Posts />} />
+          <Route path="/posts" element={<Posts darkMode={darkMode} />} />
           <Route path="/connect" element={<Connect />} />
           <Route path="/landmark-details/:landmarkId" element={<LandmarkDetails />} />
           <Route path="/devise-plan" element={<DevisePlanPage />} />

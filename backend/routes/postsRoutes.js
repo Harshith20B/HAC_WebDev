@@ -1,17 +1,17 @@
-// routes/postsRoutes.js
 const express = require('express');
 const router = express.Router();
-const { 
-  createPost, 
-  getAllPosts, 
-  getPostById, 
+const upload = require('../middleware/upload'); // Import upload middleware
+const {
+  createPost,
+  getAllPosts,
+  getPostById,
   getUserPosts,
-  updatePost, 
-  deletePost, 
-  likePost, 
-  unlikePost, 
-  addComment, 
-  deleteComment, 
+  updatePost,
+  deletePost,
+  likePost,
+  unlikePost,
+  addComment,
+  deleteComment,
   searchPosts,
   getPostsByLocation,
   getPostsByLandmark
@@ -21,15 +21,16 @@ const {
 const { authenticateToken, isAuthenticated } = require('../middleware/authMiddleware');
 
 // Public routes (no authentication required, but user authentication status is checked)
-router.get('/posts', isAuthenticated, getAllPosts);  // Changed from /posts to /
+router.get('/posts', isAuthenticated, getAllPosts);
 router.get('/posts/:id', isAuthenticated, getPostById);
-router.get('/user/:userId', getUserPosts);  // Changed from /posts/user/:userId
+router.get('/user/:userId', getUserPosts);
 router.get('/search', isAuthenticated, searchPosts);
 router.get('/location/:location', getPostsByLocation);
 router.get('/landmark/:landmark', getPostsByLandmark);
 
 // Protected routes (authentication required)
-router.post('/posts', authenticateToken, createPost);  // Changed from /posts to /
+// Note: upload.single('mediaFile') handles single file upload with field name 'mediaFile'
+router.post('/posts', authenticateToken, upload.single('mediaFile'), createPost);
 router.put('/posts/:id', authenticateToken, updatePost);
 router.delete('/posts/:id', authenticateToken, deletePost);
 router.post('/posts/:id/like', authenticateToken, likePost);

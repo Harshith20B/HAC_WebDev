@@ -1,7 +1,7 @@
 // controllers/postsController.js
 const Post = require('../models/Post');
 const User = require('../models/User');
-
+const cloudinary = require('../config/cloudinary');
 // Get all posts with pagination, sorting, and user authentication status
 // Fix for getAllPosts in postsController.js
 const getAllPosts = async (req, res) => {
@@ -60,7 +60,6 @@ const getAllPosts = async (req, res) => {
   }
 };
 
-// Create a new post
 const createPost = async (req, res) => {
   try {
     // Get user ID from the authenticated request
@@ -68,7 +67,7 @@ const createPost = async (req, res) => {
     
     console.log('Creating post for user:', userId);
 
-    const { title, content, mediaType, mediaUrl, location, landmark } = req.body;
+    const { title, content, mediaType, location, landmark } = req.body;
 
     // Validate required fields
     if (!location) {
@@ -79,8 +78,16 @@ const createPost = async (req, res) => {
       return res.status(400).json({ message: 'Content is required for text posts' });
     }
 
-    if ((mediaType === 'image' || mediaType === 'video') && !mediaUrl) {
-      return res.status(400).json({ message: 'Media URL is required for image/video posts' });
+    if ((mediaType === 'image' || mediaType === 'video') && !req.file) {
+      return res.status(400).json({ message: 'Media file is required for image/video posts' });
+    }
+
+    let mediaUrl = null;
+    
+    // If there's a file uploaded, get the Cloudinary URL
+    if (req.file) {
+      mediaUrl = req.file.path; // Cloudinary URL from multer-storage-cloudinary
+      console.log('Uploaded file URL:', mediaUrl);
     }
 
     const newPost = new Post({
@@ -104,9 +111,23 @@ const createPost = async (req, res) => {
       { $push: { posts: savedPost._id } }
     );
 
-    res.status(201).json(savedPost);
+    // Return the saved post with populated user data
+    const populatedPost = await Post.findById(savedPost._id)
+      .populate('user', 'name email profilePicture');
+
+    res.status(201).json(populatedPost);
   } catch (error) {
     console.error('Error creating post:', error);
+    
+    // If there was an error after file upload, delete the uploaded file from Cloudinary
+    if (req.file && req.file.public_id) {
+      try {
+        await cloudinary.uploader.destroy(req.file.public_id);
+      } catch (deleteError) {
+        console.error('Error deleting uploaded file:', deleteError);
+      }
+    }
+    
     res.status(500).json({ message: 'Failed to create post', error: error.message });
   }
 };
@@ -202,6 +223,22 @@ const deletePost = async (req, res) => {
     // Check if the user is the owner of the post
     if (post.user.toString() !== userId) {
       return res.status(403).json({ message: 'You can only delete your own posts' });
+    }
+    
+    // If post has media, delete it from Cloudinary
+    if (post.mediaUrl) {
+      try {
+        // Extract public_id from Cloudinary URL
+        const publicId = post.mediaUrl.split('/').pop().split('.')[0];
+        const fullPublicId = `travel-posts/${publicId}`;
+        
+        // Delete from Cloudinary
+        await cloudinary.uploader.destroy(fullPublicId, { resource_type: 'auto' });
+        console.log('Deleted media from Cloudinary:', fullPublicId);
+      } catch (cloudinaryError) {
+        console.error('Error deleting from Cloudinary:', cloudinaryError);
+        // Continue with post deletion even if Cloudinary deletion fails
+      }
     }
     
     // Delete the post

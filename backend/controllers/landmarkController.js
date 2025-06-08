@@ -6,7 +6,7 @@ const Landmark2 = require('../models/Landmark2');
 const getMostVisitedLandmarks = async (req, res) => {
   try {
     const landmarks = await Landmark.find().sort({ visits: -1 }).limit(9); // Top 9 most visited landmarks
-    res.json(landmarks);
+    res.json(landma65rks);
   } catch (error) {
     console.error("Error fetching landmarks:", error);
     res.status(500).json({ message: 'Error fetching landmarks' });
