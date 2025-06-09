@@ -13,6 +13,8 @@ import DarkModeToggle from './components/DarkModeToggle';
 import Posts from './pages/Posts'; 
 import axios from 'axios';
 import TravelForm from './pages/TravelForm';
+import EditProfile from './pages/EditProfile';
+import EditTravelForm from './components/EditTravelForm';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -226,6 +228,8 @@ function App() {
           <Route path="/landmark-details/:landmarkId" element={<LandmarkDetails />} />
           <Route path="/devise-plan" element={<DevisePlanPage />} />
           <Route path="/create-travel-plan" element={<TravelForm />} />
+          <Route path="/profile" element={<EditProfile />} />
+          <Route path="/edit-travel-plan" element={<EditTravelForm />} />
         </Routes>
       </main>
     </div>

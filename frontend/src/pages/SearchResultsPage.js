@@ -54,6 +54,7 @@ function SearchResultsPage() {
   const [numberOfDays, setNumberOfDays] = useState(3);
   const [budget, setBudget] = useState(25000); // Changed to INR equivalent (500 USD ≈ ₹25,000)
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
@@ -67,37 +68,34 @@ function SearchResultsPage() {
     return `₹${amount.toLocaleString('en-IN')}`;
   };
 
-  useEffect(() => {
+useEffect(() => {
     const fetchLandmarks = async () => {
       setIsLoading(true);
+      setError(null);
       try {
         const response = await axios.get(`${API_BASE_URL}/explore/search`, {
-          params: { location: searchLocation, radius: searchRadius },
+          params: { 
+            location: searchLocation, 
+            radius: searchRadius 
+          },
         });
         
-        const validLandmarks = response.data.filter(landmark => 
-          landmark.name && 
-          landmark.name.trim() !== '' && 
-          landmark.name.toLowerCase() !== 'unknown name'
-        ).map(landmark => ({
-          ...landmark,
-          // Ensure proper latitude and longitude format
-          latitude: landmark.location?.lat || landmark.coordinates?.[1],
-          longitude: landmark.location?.lon || landmark.coordinates?.[0],
-          description: landmark.description || `Landmark in ${searchLocation}`
-        }));
-
-        console.log('Filtered landmarks:', validLandmarks);
-        setLandmarks(validLandmarks);
+        if (response.data.length === 0) {
+          setError('No landmarks found for this location. Try increasing the search radius.');
+        } else {
+          setLandmarks(response.data);
+        }
       } catch (error) {
         console.error('Error fetching landmarks:', error);
-        setLandmarks([]);
+        setError('Failed to fetch landmarks. Please try again later.');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchLandmarks();
+    if (searchLocation && searchRadius) {
+      fetchLandmarks();
+    }
   }, [searchLocation, searchRadius]);
 
   const selectLandmark = (landmarkName) => {
@@ -142,6 +140,13 @@ function SearchResultsPage() {
 
   return (
     <div className="relative min-h-screen bg-white dark:bg-gray-900">
+      {error && (
+        <div className="container mx-auto px-4 pt-6">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+            {error}
+          </div>
+        </div>
+      )}
       <div className="container mx-auto px-4 pb-32">
         <h2 className="text-2xl font-bold mb-4 text-center pt-6 text-gray-800 dark:text-white">
           Landmarks near {searchLocation} within {searchRadius} km

@@ -1,17 +1,68 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, Users, MapPin } from 'lucide-react';
+import { Calendar, Users, MapPin, Edit, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Connect = () => {
   const [travelPlans, setTravelPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const navigate = useNavigate();
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://hac-webdev-2.onrender.com/api';
+
+  // Get token from localStorage
+  const getAuthToken = () => {
+    return localStorage.getItem('token');
+  };
+
+  // Get auth headers for API calls
+  const getAuthHeaders = () => {
+    const token = getAuthToken();
+    return {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` })
+    };
+  };
+
+  // Fetch current user info
+  const fetchCurrentUser = async () => {
+    const token = getAuthToken();
+    if (!token) {
+      setIsAuthenticated(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/me`, {
+        headers: getAuthHeaders()
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        setCurrentUser(userData);
+        setIsAuthenticated(true);
+      } else {
+        // Token is invalid, remove it
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+      }
+    } catch (error) {
+      console.error('Error fetching current user:', error);
+      setIsAuthenticated(false);
+      setCurrentUser(null);
+    }
+  };
+
   const fetchTravelPlans = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/travelplans`);
+      const response = await fetch(`${API_BASE_URL}/travelplans`, {
+        headers: getAuthHeaders()
+      });
+      
       if (!response.ok) {
         throw new Error('Failed to fetch travel plans');
       }
@@ -26,17 +77,88 @@ const Connect = () => {
   };
 
   const handleSendInvite = (recipientEmail, planTitle) => {
+    if (!isAuthenticated) {
+      alert('Please log in to send invites');
+      navigate('/login');
+      return;
+    }
+
     const subject = encodeURIComponent(`Join my travel plan: ${planTitle}`);
     const body = encodeURIComponent(
-      `Hi there,\n\nI would like to join your travel plan titled "${planTitle}".\n\nPlease let me know if there's room for me!\n\nBest regards,`
+      `Hi there,\n\nI would like to join your travel plan titled "${planTitle}".\n\nPlease let me know if there's room for me!\n\nBest regards,\n${currentUser?.name || 'A Fellow Traveler'}`
     );
     
-    // Open email client with pre-filled details
     window.location.href = `mailto:${recipientEmail}?subject=${subject}&body=${body}`;
   };
 
+  const handleDeletePlan = async (planId) => {
+    if (!isAuthenticated) {
+      alert('Please log in to manage your plans');
+      navigate('/login');
+      return;
+    }
+
+    if (window.confirm('Are you sure you want to delete this travel plan? This action cannot be undone.')) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/travelplans/${planId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to delete travel plan');
+        }
+
+        fetchTravelPlans();
+        alert('Travel plan deleted successfully!');
+      } catch (error) {
+        console.error('Error deleting travel plan:', error);
+        alert(error.message || 'Failed to delete travel plan');
+      }
+    }
+  };
+
+  const handleEditPlan = (plan) => {
+    if (!isAuthenticated) {
+      alert('Please log in to edit plans');
+      navigate('/login');
+      return;
+    }
+
+    // Check if user is the creator
+    if (currentUser.email !== plan.email) {
+      alert('You can only edit your own travel plans');
+      return;
+    }
+    navigate('/edit-travel-plan', { 
+        state: { 
+          plan, 
+          currentUser 
+        } 
+      });
+    };
+
+  const handleCreatePlan = () => {
+    if (!isAuthenticated) {
+      alert('Please log in to create travel plans');
+      navigate('/login');
+      return;
+    }
+    navigate('/create-travel-plan');
+  };
+
+  const isCreator = (planEmail) => {
+    return isAuthenticated && currentUser && currentUser.email === planEmail;
+  };
+
   useEffect(() => {
-    fetchTravelPlans();
+    const initializeAuth = async () => {
+      await fetchCurrentUser();
+      await fetchTravelPlans();
+    };
+    
+    initializeAuth();
   }, []);
 
   if (loading) {
@@ -57,13 +179,22 @@ const Connect = () => {
         <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
           Join exciting travel plans or create your own adventure
         </p>
-        <button
-          onClick={() => navigate('/create-travel-plan')}
-          className="inline-flex items-center px-6 py-3 text-base font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg transition-colors duration-200"
-        >
-          <Users className="mr-2 h-5 w-5" />
-          Create Travel Plan
-        </button>
+        
+        <div className="flex justify-center">
+          <button
+            onClick={handleCreatePlan}
+            className="inline-flex items-center px-6 py-3 text-base font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg transition-colors duration-200"
+          >
+            <Users className="mr-2 h-5 w-5" />
+            Create Travel Plan
+          </button>
+        </div>
+        
+        {/* {isAuthenticated && currentUser && (
+          <p className="mt-6 text-sm text-gray-600 dark:text-gray-400">
+            Welcome back, {currentUser.name}! ({currentUser.email})
+          </p>
+        )} */}
       </div>
 
       {error && (
@@ -88,13 +219,35 @@ const Connect = () => {
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white">
                     {plan.title}
                   </h3>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    by {plan.user}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      by {plan.user}
+                    </span>
+                    {isCreator(plan.email) && (
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handleEditPlan(plan)}
+                          className="p-1 text-blue-600 hover:text-blue-800 transition-colors"
+                          title="Edit plan"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeletePlan(plan._id)}
+                          className="p-1 text-red-600 hover:text-red-800 transition-colors"
+                          title="Delete plan"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
+                
                 <p className="text-gray-600 dark:text-gray-300 mb-4">
                   {plan.description}
                 </p>
+                
                 <div className="space-y-3">
                   <div className="flex items-center text-gray-600 dark:text-gray-300">
                     <MapPin className="h-5 w-5 mr-2 flex-shrink-0" />
@@ -111,14 +264,21 @@ const Connect = () => {
                     </span>
                   </div>
                 </div>
+                
                 <div className="mt-6">
-                  <button
-                    onClick={() => handleSendInvite(plan.email, plan.title)}
-                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:bg-gray-400"
-                    disabled={plan.currentPeople >= plan.maxPeople}
-                  >
-                    {plan.currentPeople >= plan.maxPeople ? 'Plan Full' : 'Request to Join'}
-                  </button>
+                  {!isCreator(plan.email) ? (
+                    <button
+                      onClick={() => handleSendInvite(plan.email, plan.title)}
+                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:bg-gray-400"
+                      disabled={plan.currentPeople >= plan.maxPeople}
+                    >
+                      {plan.currentPeople >= plan.maxPeople ? 'Plan Full' : 'Request to Join'}
+                    </button>
+                  ) : (
+                    <div className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-4 py-2 rounded-lg text-center text-sm">
+                      Your Travel Plan
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

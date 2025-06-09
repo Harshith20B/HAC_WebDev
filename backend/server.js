@@ -51,7 +51,7 @@ app.use('/api', productRoutes);
 app.use('/api/travelplans', travelPlanRoutes);
 app.use('/api/explore', exploreRoutes);
 app.use('/api/landmarks', landmarkRoutes);
-app.use('/api/bookmark', userRoutes);
+app.use('/api/user', userRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/social', postsRoutes); // Add the new routes with a social prefix
 
