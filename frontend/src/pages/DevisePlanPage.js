@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Map, Navigation, Clock, Calendar, DollarSign, MapPin, Users, Loader2, Home, Car, Utensils, IndianRupee } from 'lucide-react';
+import { Map, Navigation, Clock, Calendar, DollarSign, MapPin, Users, Loader2, Home, Car, Utensils, IndianRupee, Cloud } from 'lucide-react';
 import axios from 'axios';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import WeatherForecast from '../components/WeatherForecast'; // Adjust path based on your folder structure
 
 const DevisePlanPage = () => {
   const location = useLocation();
@@ -15,6 +16,11 @@ const DevisePlanPage = () => {
   const [itinerary, setItinerary] = useState(null);
   const [isGeneratingItinerary, setIsGeneratingItinerary] = useState(false);
   const [error, setError] = useState(null);
+  const [showWeather, setShowWeather] = useState(false);
+  
+  // Use ref to track if map is already initialized
+  const mapRef = useRef(null);
+  const mapContainerRef = useRef(null);
   
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://hac-webdev-2.onrender.com/api';
 
@@ -24,101 +30,138 @@ const DevisePlanPage = () => {
     return `₹${amount.toLocaleString('en-IN')}`;
   };
 
+  // Cleanup function for the map
   useEffect(() => {
-    // Clean up function for the map
     return () => {
-      if (map) map.remove();
-    };
-  }, [map]);
-
-  useEffect(() => {
-    try {
-      if (!selectedLandmarks.length) return;
-
-      const validCoordinates = selectedLandmarks.filter(
-        landmark => landmark.latitude && landmark.longitude
-      );
-
-      if (!validCoordinates.length) {
-        console.error("No valid coordinates found");
-        return;
-      }
-
-      // Initialize map
-      const mapInstance = L.map('map').setView(
-        [validCoordinates[0].latitude, validCoordinates[0].longitude],
-        13
-      );
-
-      setMap(mapInstance);
-
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-      }).addTo(mapInstance);
-
-      // Use optimized route if available, otherwise use selected landmarks
-      const routeToDisplay = itinerary?.routeOptimization?.optimizedLandmarks || validCoordinates;
-
-      // Calculate distances and add markers
-      const calculatedDistances = [];
-      let totalDist = 0;
-
-      routeToDisplay.forEach((landmark, index) => {
-        // Create marker with custom icon based on index
-        const markerIcon = L.divIcon({
-          className: 'custom-marker',
-          html: `<div style="background-color: #3B82F6; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">${index + 1}</div>`,
-          iconSize: [30, 30],
-          iconAnchor: [15, 15]
-        });
-
-        const marker = L.marker([landmark.latitude, landmark.longitude], { icon: markerIcon })
-          .addTo(mapInstance)
-          .bindPopup(`
-            <div class="p-2">
-              <h3 class="font-bold">${landmark.name}</h3>
-              <p class="text-sm">Stop ${index + 1}</p>
-              ${landmark.description ? `<p class="text-xs mt-1">${landmark.description}</p>` : ''}
-            </div>
-          `);
-
-        // Calculate distance if not first point
-        if (index > 0) {
-          const prevLandmark = routeToDisplay[index - 1];
-          const distance = mapInstance.distance(
-            [prevLandmark.latitude, prevLandmark.longitude],
-            [landmark.latitude, landmark.longitude]
-          );
-          
-          totalDist += distance;
-          calculatedDistances.push({
-            from: prevLandmark.name,
-            to: landmark.name,
-            distance: (distance / 1000).toFixed(2)
-          });
+      if (mapRef.current) {
+        try {
+          mapRef.current.remove();
+          mapRef.current = null;
+        } catch (error) {
+          console.warn('Error cleaning up map:', error);
         }
-      });
+      }
+    };
+  }, []);
 
-      // Draw path with better styling
-      const coordinates = routeToDisplay.map(l => [l.latitude, l.longitude]);
-      L.polyline(coordinates, { 
-        color: '#3B82F6', 
-        weight: 4, 
-        opacity: 0.8,
-        dashArray: '5, 10'
-      }).addTo(mapInstance);
+  // Initialize map effect
+  useEffect(() => {
+    const initializeMap = () => {
+      try {
+        if (!selectedLandmarks.length) return;
 
-      // Fit bounds with padding
-      mapInstance.fitBounds(coordinates, { padding: [20, 20] });
+        const validCoordinates = selectedLandmarks.filter(
+          landmark => landmark.latitude && landmark.longitude
+        );
 
-      // Update state
-      setDistances(calculatedDistances);
-      setTotalDistance(totalDist / 1000);
-      setEstimatedTime(Math.ceil((totalDist / 1000) / 30 * 60));
+        if (!validCoordinates.length) {
+          console.error("No valid coordinates found");
+          return;
+        }
 
-    } catch (error) {
-      console.error("Error initializing map:", error);
-    }
+        // Clean up existing map if it exists
+        if (mapRef.current) {
+          try {
+            mapRef.current.remove();
+            mapRef.current = null;
+          } catch (error) {
+            console.warn('Error removing existing map:', error);
+          }
+        }
+
+        // Clear the map container
+        const mapContainer = document.getElementById('map');
+        if (mapContainer) {
+          mapContainer.innerHTML = '';
+        }
+
+        // Wait a bit for cleanup to complete
+        setTimeout(() => {
+          try {
+            // Initialize new map
+            const mapInstance = L.map('map').setView(
+              [validCoordinates[0].latitude, validCoordinates[0].longitude],
+              13
+            );
+
+            mapRef.current = mapInstance;
+            setMap(mapInstance);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              attribution: '© OpenStreetMap contributors'
+            }).addTo(mapInstance);
+
+            // Use optimized route if available, otherwise use selected landmarks
+            const routeToDisplay = itinerary?.routeOptimization?.optimizedLandmarks || validCoordinates;
+
+            // Calculate distances and add markers
+            const calculatedDistances = [];
+            let totalDist = 0;
+
+            routeToDisplay.forEach((landmark, index) => {
+              // Create marker with custom icon based on index
+              const markerIcon = L.divIcon({
+                className: 'custom-marker',
+                html: `<div style="background-color: #3B82F6; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">${index + 1}</div>`,
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+              });
+
+              const marker = L.marker([landmark.latitude, landmark.longitude], { icon: markerIcon })
+                .addTo(mapInstance)
+                .bindPopup(`
+                  <div class="p-2">
+                    <h3 class="font-bold">${landmark.name}</h3>
+                    <p class="text-sm">Stop ${index + 1}</p>
+                    ${landmark.description ? `<p class="text-xs mt-1">${landmark.description}</p>` : ''}
+                  </div>
+                `);
+
+              // Calculate distance if not first point
+              if (index > 0) {
+                const prevLandmark = routeToDisplay[index - 1];
+                const distance = mapInstance.distance(
+                  [prevLandmark.latitude, prevLandmark.longitude],
+                  [landmark.latitude, landmark.longitude]
+                );
+                
+                totalDist += distance;
+                calculatedDistances.push({
+                  from: prevLandmark.name,
+                  to: landmark.name,
+                  distance: (distance / 1000).toFixed(2)
+                });
+              }
+            });
+
+            // Draw path with better styling
+            const coordinates = routeToDisplay.map(l => [l.latitude, l.longitude]);
+            L.polyline(coordinates, { 
+              color: '#3B82F6', 
+              weight: 4, 
+              opacity: 0.8,
+              dashArray: '5, 10'
+            }).addTo(mapInstance);
+
+            // Fit bounds with padding
+            mapInstance.fitBounds(coordinates, { padding: [20, 20] });
+
+            // Update state
+            setDistances(calculatedDistances);
+            setTotalDistance(totalDist / 1000);
+            setEstimatedTime(Math.ceil((totalDist / 1000) / 30 * 60));
+
+          } catch (error) {
+            console.error("Error initializing map:", error);
+          }
+        }, 100);
+
+      } catch (error) {
+        console.error("Error in map initialization process:", error);
+      }
+    };
+
+    initializeMap();
   }, [selectedLandmarks, itinerary]);
 
   // Generate detailed itinerary
@@ -243,7 +286,7 @@ const DevisePlanPage = () => {
               </h2>
             </div>
             <div className="p-6">
-              <div id="map" className="h-96 rounded-lg border"></div>
+              <div id="map" className="h-96 rounded-lg border" ref={mapContainerRef}></div>
             </div>
           </div>
 
@@ -528,6 +571,13 @@ const DevisePlanPage = () => {
             Export Itinerary
           </button>
           <button 
+            onClick={() => setShowWeather(!showWeather)}
+            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center"
+          >
+            <Cloud className="mr-2 h-5 w-5" />
+            {showWeather ? 'Hide Weather' : 'Show Weather Forecast'}
+          </button>
+          <button 
             onClick={() => {
               if (navigator.share) {
                 navigator.share({
@@ -537,12 +587,18 @@ const DevisePlanPage = () => {
                 });
               }
             }}
-            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center"
+            className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center"
           >
             <Users className="mr-2 h-5 w-5" />
             Share Trip
           </button>
         </div>
+        {/* Weather Forecast Section */}
+        <WeatherForecast 
+          city={tripDetails.location}
+          tripDetails={tripDetails}
+          isVisible={showWeather}
+        />
       </div>
     </div>
   );
