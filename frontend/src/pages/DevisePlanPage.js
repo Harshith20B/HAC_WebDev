@@ -81,124 +81,133 @@ const DevisePlanPage = () => {
   }, []);
 
   // Initialize map effect
-  useEffect(() => {
-    const initializeMap = () => {
-      try {
-        if (!selectedLandmarks.length) return;
+// Replace the map initialization useEffect with this fixed version:
+const getCurrentLandmarks = () => {
+  return itinerary?.routeOptimization?.optimizedLandmarks || selectedLandmarks;
+};
+useEffect(() => {
+  const initializeMap = () => {
+    try {
+      // Get the current landmarks to display - prioritize AI-optimized landmarks
+      const currentLandmarks = itinerary?.routeOptimization?.optimizedLandmarks || selectedLandmarks;
+      
+      if (!currentLandmarks.length) return;
 
-        const validCoordinates = selectedLandmarks.filter(
-          landmark => landmark.latitude && landmark.longitude
-        );
+      const validCoordinates = currentLandmarks.filter(
+        landmark => landmark.latitude && landmark.longitude
+      );
 
-        if (!validCoordinates.length) {
-          console.error("No valid coordinates found");
-          return;
+      if (!validCoordinates.length) {
+        console.error("No valid coordinates found");
+        return;
+      }
+
+      // Clean up existing map if it exists
+      if (mapRef.current) {
+        try {
+          mapRef.current.remove();
+          mapRef.current = null;
+        } catch (error) {
+          console.warn('Error removing existing map:', error);
         }
+      }
 
-        // Clean up existing map if it exists
-        if (mapRef.current) {
-          try {
-            mapRef.current.remove();
-            mapRef.current = null;
-          } catch (error) {
-            console.warn('Error removing existing map:', error);
-          }
-        }
+      // Clear the map container
+      const mapContainer = document.getElementById('map');
+      if (mapContainer) {
+        mapContainer.innerHTML = '';
+      }
 
-        // Clear the map container
-        const mapContainer = document.getElementById('map');
-        if (mapContainer) {
-          mapContainer.innerHTML = '';
-        }
+      // Wait a bit for cleanup to complete
+      setTimeout(() => {
+        try {
+          // Initialize new map
+          const mapInstance = L.map('map').setView(
+            [validCoordinates[0].latitude, validCoordinates[0].longitude],
+            13
+          );
 
-        // Wait a bit for cleanup to complete
-        setTimeout(() => {
-          try {
-            // Initialize new map
-            const mapInstance = L.map('map').setView(
-              [validCoordinates[0].latitude, validCoordinates[0].longitude],
-              13
-            );
+          mapRef.current = mapInstance;
+          setMap(mapInstance);
 
-            mapRef.current = mapInstance;
-            setMap(mapInstance);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+          }).addTo(mapInstance);
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-              attribution: '© OpenStreetMap contributors'
-            }).addTo(mapInstance);
+          // Use the current landmarks (which includes AI-generated ones)
+          const routeToDisplay = validCoordinates;
 
-            // Use optimized route if available, otherwise use selected landmarks
-            const routeToDisplay = itinerary?.routeOptimization?.optimizedLandmarks || validCoordinates;
+          // Calculate distances and add markers
+          const calculatedDistances = [];
+          let totalDist = 0;
 
-            // Calculate distances and add markers
-            const calculatedDistances = [];
-            let totalDist = 0;
-
-            routeToDisplay.forEach((landmark, index) => {
-              // Create marker with custom icon based on index
-              const markerIcon = L.divIcon({
-                className: 'custom-marker',
-                html: `<div style="background-color: #3B82F6; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">${index + 1}</div>`,
-                iconSize: [30, 30],
-                iconAnchor: [15, 15]
-              });
-
-              const marker = L.marker([landmark.latitude, landmark.longitude], { icon: markerIcon })
-                .addTo(mapInstance)
-                .bindPopup(`
-                  <div class="p-2">
-                    <h3 class="font-bold">${landmark.name}</h3>
-                    <p class="text-sm">Stop ${index + 1}</p>
-                    ${landmark.description ? `<p class="text-xs mt-1">${landmark.description}</p>` : ''}
-                  </div>
-                `);
-
-              // Calculate distance if not first point
-              if (index > 0) {
-                const prevLandmark = routeToDisplay[index - 1];
-                const distance = mapInstance.distance(
-                  [prevLandmark.latitude, prevLandmark.longitude],
-                  [landmark.latitude, landmark.longitude]
-                );
-                
-                totalDist += distance;
-                calculatedDistances.push({
-                  from: prevLandmark.name,
-                  to: landmark.name,
-                  distance: (distance / 1000).toFixed(2)
-                });
-              }
+          routeToDisplay.forEach((landmark, index) => {
+            // Create marker with custom icon based on index
+            const markerIcon = L.divIcon({
+              className: 'custom-marker',
+              html: `<div style="background-color: ${landmark.isAdditional ? '#10B981' : '#3B82F6'}; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">${index + 1}</div>`,
+              iconSize: [30, 30],
+              iconAnchor: [15, 15]
             });
 
-            // Draw path with better styling
-            const coordinates = routeToDisplay.map(l => [l.latitude, l.longitude]);
-            L.polyline(coordinates, { 
-              color: '#3B82F6', 
-              weight: 4, 
-              opacity: 0.8,
-              dashArray: '5, 10'
-            }).addTo(mapInstance);
+            const marker = L.marker([landmark.latitude, landmark.longitude], { icon: markerIcon })
+              .addTo(mapInstance)
+              .bindPopup(`
+                <div class="p-2">
+                  <h3 class="font-bold">${landmark.name}</h3>
+                  <p class="text-sm">Stop ${index + 1}</p>
+                  ${landmark.isAdditional ? '<p class="text-xs text-green-600">AI Recommended</p>' : ''}
+                  ${landmark.description ? `<p class="text-xs mt-1">${landmark.description}</p>` : ''}
+                  ${landmark.popularity ? `<p class="text-xs">Popularity: ${Math.round(landmark.popularity)}/100</p>` : ''}
+                </div>
+              `);
 
-            // Fit bounds with padding
-            mapInstance.fitBounds(coordinates, { padding: [20, 20] });
+            // Calculate distance if not first point
+            if (index > 0) {
+              const prevLandmark = routeToDisplay[index - 1];
+              const distance = mapInstance.distance(
+                [prevLandmark.latitude, prevLandmark.longitude],
+                [landmark.latitude, landmark.longitude]
+              );
+              
+              totalDist += distance;
+              calculatedDistances.push({
+                from: prevLandmark.name,
+                to: landmark.name,
+                distance: (distance / 1000).toFixed(2)
+              });
+            }
+          });
 
-            // Update state
-            setDistances(calculatedDistances);
-            setTotalDistance(totalDist / 1000);
-            setEstimatedTime(Math.ceil((totalDist / 1000) / 30 * 60));
+          // Draw path with better styling
+          const coordinates = routeToDisplay.map(l => [l.latitude, l.longitude]);
+          L.polyline(coordinates, { 
+            color: '#3B82F6', 
+            weight: 4, 
+            opacity: 0.8,
+            dashArray: '5, 10'
+          }).addTo(mapInstance);
 
-          } catch (error) {
-            console.error("Error initializing map:", error);
-          }
-        }, 100);
+          // Fit bounds with padding
+          mapInstance.fitBounds(coordinates, { padding: [20, 20] });
 
-      } catch (error) {
-        console.error("Error in map initialization process:", error);
-      }
-    };
+          // Update state
+          setDistances(calculatedDistances);
+          setTotalDistance(totalDist / 1000);
+          setEstimatedTime(Math.ceil((totalDist / 1000) / 30 * 60));
 
-    initializeMap();
-  }, [selectedLandmarks, itinerary]);
+        } catch (error) {
+          console.error("Error initializing map:", error);
+        }
+      }, 100);
+
+    } catch (error) {
+      console.error("Error in map initialization process:", error);
+    }
+  };
+
+  initializeMap();
+}, [selectedLandmarks, itinerary?.routeOptimization?.optimizedLandmarks]); // Key fix: depend on optimizedLandmarks
 
   // Generate detailed itinerary
   const generateDetailedItinerary = async () => {
@@ -327,23 +336,46 @@ const DevisePlanPage = () => {
           </div>
 
           {/* Route Details */}
+
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
                 <Navigation className="mr-2" />
                 Optimized Route Order
+                {itinerary?.routeOptimization?.optimizedLandmarks && (
+                  <span className="ml-2 px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded-full">
+                    AI Enhanced
+                  </span>
+                )}
               </h2>
             </div>
             <div className="p-6">
               <div className="space-y-4">
-                {(itinerary?.routeOptimization?.optimizedLandmarks || selectedLandmarks).map((landmark, index) => (
-                  <div key={index} className="flex items-start space-x-3">
-                    <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                {getCurrentLandmarks().map((landmark, index) => (
+                  <div key={`${landmark.name}-${index}`} className="flex items-start space-x-3">
+                    <div className={`flex-shrink-0 w-8 h-8 ${landmark.isAdditional ? 'bg-green-500' : 'bg-blue-500'} text-white rounded-full flex items-center justify-center text-sm font-bold`}>
                       {index + 1}
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">{landmark.name}</h3>
+                      <div className="flex items-center space-x-2">
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">{landmark.name}</h3>
+                        {landmark.isAdditional && (
+                          <span className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded-full">
+                            AI Added
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">{landmark.description}</p>
+                      {landmark.popularity && (
+                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                          Popularity: {Math.round(landmark.popularity)}/100
+                        </p>
+                      )}
+                      {landmark.rating && (
+                        <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                          Rating: {landmark.rating}/5
+                        </p>
+                      )}
                       {distances[index - 1] && (
                         <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
                           {distances[index - 1].distance} km from previous location
