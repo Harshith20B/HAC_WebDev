@@ -17,12 +17,48 @@ const DevisePlanPage = () => {
   const [isGeneratingItinerary, setIsGeneratingItinerary] = useState(false);
   const [error, setError] = useState(null);
   const [showWeather, setShowWeather] = useState(false);
-  
+  const [isDarkMode, setIsDarkMode] = useState(false);
   // Use ref to track if map is already initialized
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
   
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://hac-webdev-2.onrender.com/api';
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      // Check if dark class is on html or body element
+      const htmlHasDark = document.documentElement.classList.contains('dark');
+      const bodyHasDark = document.body.classList.contains('dark');
+      
+      // If not found in classes, check system preference
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      
+      setIsDarkMode(htmlHasDark || bodyHasDark || systemPrefersDark);
+    };
+
+    // Initial check
+    checkDarkMode();
+
+    // Set up observer to watch for class changes
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, { 
+      attributes: true, 
+      attributeFilter: ['class'] 
+    });
+    observer.observe(document.body, { 
+      attributes: true, 
+      attributeFilter: ['class'] 
+    });
+
+    // Listen for system theme changes
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    mediaQuery.addEventListener('change', checkDarkMode);
+
+    return () => {
+      observer.disconnect();
+      mediaQuery.removeEventListener('change', checkDarkMode);
+    };
+  }, []);
 
   // Helper function to format currency in INR
   const formatINR = (amount) => {
@@ -561,7 +597,7 @@ const DevisePlanPage = () => {
           </div>
         </div>
 
-        {/* Action Buttons */}
+        {/* Action buttons */}
         <div className="mt-8 flex justify-center space-x-4">
           <button 
             onClick={() => window.print()}
@@ -593,12 +629,18 @@ const DevisePlanPage = () => {
             Share Trip
           </button>
         </div>
-        {/* Weather Forecast Section */}
-        <WeatherForecast 
-          city={tripDetails.location}
-          tripDetails={tripDetails}
-          isVisible={showWeather}
-        />
+
+        {/* Weather Forecast Section - Pass dark mode prop */}
+        {showWeather && (
+          <div className="mt-8">
+            <WeatherForecast 
+              city={tripDetails.location}
+              tripDetails={tripDetails}
+              isVisible={showWeather}
+              darkMode={isDarkMode}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
