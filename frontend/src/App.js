@@ -137,9 +137,9 @@ function App() {
           <div className="hidden lg:flex items-center space-x-4">
             <DarkModeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
   
-            <Link to="/shops" className="px-4 py-2 rounded hover:bg-opacity-80">
+            {/* <Link to="/shops" className="px-4 py-2 rounded hover:bg-opacity-80">
               Shops
-            </Link>
+            </Link> */}
             <Link to="/posts" className="px-4 py-2 rounded hover:bg-opacity-80">
               Posts
             </Link>
@@ -191,7 +191,7 @@ function App() {
               <DarkModeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
             </div>
             <Link to="/" className="block text-white py-2">Home</Link>
-            <Link to="/shops" className="block text-white py-2">Shops</Link>
+            {/* <Link to="/shops" className="block text-white py-2">Shops</Link> */}
             <Link to="/posts" className="block text-white py-2">Posts</Link>
             <Link to="/connect" className="block text-white py-2">Connect</Link>
             {isLoggedIn ? (

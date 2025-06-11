@@ -21,6 +21,8 @@ const DevisePlanPage = () => {
   // Use ref to track if map is already initialized
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
+  const markersRef = useRef([]);
+  const polylineRef = useRef(null);
   
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://hac-webdev-2.onrender.com/api';
 
@@ -67,147 +69,163 @@ const DevisePlanPage = () => {
   };
 
   // Cleanup function for the map
-  useEffect(() => {
-    return () => {
-      if (mapRef.current) {
-        try {
-          mapRef.current.remove();
-          mapRef.current = null;
-        } catch (error) {
-          console.warn('Error cleaning up map:', error);
-        }
+// REPLACE THE EXISTING CLEANUP useEffect WITH:
+useEffect(() => {
+  return () => {
+    clearMapElements();
+    if (mapRef.current) {
+      try {
+        mapRef.current.remove();
+        mapRef.current = null;
+      } catch (error) {
+        console.warn('Error cleaning up map:', error);
       }
-    };
-  }, []);
+    }
+  };
+}, []);
 
+  // ADD THIS NEW FUNCTION:
+const clearMapElements = () => {
+  if (markersRef.current) {
+    markersRef.current.forEach(marker => {
+      if (mapRef.current && marker) {
+        mapRef.current.removeLayer(marker);
+      }
+    });
+    markersRef.current = [];
+  }
+  
+  if (polylineRef.current && mapRef.current) {
+    mapRef.current.removeLayer(polylineRef.current);
+    polylineRef.current = null;
+  }
+};
+// ADD THIS NEW FUNCTION:
+const updateMapWithLandmarks = () => {
+  if (!mapRef.current) return;
+
+  const currentLandmarks = getCurrentLandmarks();
+  if (!currentLandmarks.length) return;
+
+  // Clear existing elements
+  clearMapElements();
+
+  const validCoordinates = currentLandmarks.filter(
+    landmark => landmark.latitude && landmark.longitude
+  );
+
+  if (!validCoordinates.length) return;
+
+  const calculatedDistances = [];
+  let totalDist = 0;
+
+  // Add markers
+  validCoordinates.forEach((landmark, index) => {
+    const markerIcon = L.divIcon({
+      className: 'custom-marker',
+      html: `<div style="background-color: ${landmark.isAdditional ? '#10B981' : '#3B82F6'}; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">${index + 1}</div>`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 15]
+    });
+
+    const marker = L.marker([landmark.latitude, landmark.longitude], { icon: markerIcon })
+      .addTo(mapRef.current)
+      .bindPopup(`
+        <div class="p-2">
+          <h3 class="font-bold">${landmark.name}</h3>
+          <p class="text-sm">Stop ${index + 1}</p>
+          ${landmark.isAdditional ? '<p class="text-xs text-green-600">AI Recommended</p>' : ''}
+          ${landmark.description ? `<p class="text-xs mt-1">${landmark.description}</p>` : ''}
+          ${landmark.popularity ? `<p class="text-xs">Popularity: ${Math.round(landmark.popularity)}/100</p>` : ''}
+        </div>
+      `);
+
+    markersRef.current.push(marker);
+
+    // Calculate distance if not first point
+    if (index > 0) {
+      const prevLandmark = validCoordinates[index - 1];
+      const distance = mapRef.current.distance(
+        [prevLandmark.latitude, prevLandmark.longitude],
+        [landmark.latitude, landmark.longitude]
+      );
+      
+      totalDist += distance;
+      calculatedDistances.push({
+        from: prevLandmark.name,
+        to: landmark.name,
+        distance: (distance / 1000).toFixed(2)
+      });
+    }
+  });
+
+  // Draw path
+  const coordinates = validCoordinates.map(l => [l.latitude, l.longitude]);
+  polylineRef.current = L.polyline(coordinates, { 
+    color: '#3B82F6', 
+    weight: 4, 
+    opacity: 0.8,
+    dashArray: '5, 10'
+  }).addTo(mapRef.current);
+
+  // Fit bounds
+  mapRef.current.fitBounds(coordinates, { padding: [20, 20] });
+
+  // Update state
+  setDistances(calculatedDistances);
+  setTotalDistance(totalDist / 1000);
+  setEstimatedTime(Math.ceil((totalDist / 1000) / 30 * 60));
+};
   // Initialize map effect
 // Replace the map initialization useEffect with this fixed version:
 const getCurrentLandmarks = () => {
-  return itinerary?.routeOptimization?.optimizedLandmarks || selectedLandmarks;
+  if (itinerary?.routeOptimization?.optimizedLandmarks && itinerary.routeOptimization.optimizedLandmarks.length > 0) {
+    return itinerary.routeOptimization.optimizedLandmarks;
+  }
+  return selectedLandmarks;
 };
+// REPLACE THE ENTIRE useEffect FOR MAP INITIALIZATION WITH:
 useEffect(() => {
   const initializeMap = () => {
-    try {
-      // Get the current landmarks to display - prioritize AI-optimized landmarks
-      const currentLandmarks = itinerary?.routeOptimization?.optimizedLandmarks || selectedLandmarks;
-      
-      if (!currentLandmarks.length) return;
+    if (!selectedLandmarks.length) return;
 
-      const validCoordinates = currentLandmarks.filter(
-        landmark => landmark.latitude && landmark.longitude
-      );
+    const mapContainer = document.getElementById('map');
+    if (!mapContainer) return;
 
-      if (!validCoordinates.length) {
-        console.error("No valid coordinates found");
+    // Initialize map only once
+    if (!mapRef.current) {
+      try {
+        mapContainer.innerHTML = '';
+        const mapInstance = L.map('map').setView(
+          [selectedLandmarks[0].latitude, selectedLandmarks[0].longitude],
+          13
+        );
+        
+        mapRef.current = mapInstance;
+        setMap(mapInstance);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(mapInstance);
+      } catch (error) {
+        console.error("Error initializing map:", error);
         return;
       }
-
-      // Clean up existing map if it exists
-      if (mapRef.current) {
-        try {
-          mapRef.current.remove();
-          mapRef.current = null;
-        } catch (error) {
-          console.warn('Error removing existing map:', error);
-        }
-      }
-
-      // Clear the map container
-      const mapContainer = document.getElementById('map');
-      if (mapContainer) {
-        mapContainer.innerHTML = '';
-      }
-
-      // Wait a bit for cleanup to complete
-      setTimeout(() => {
-        try {
-          // Initialize new map
-          const mapInstance = L.map('map').setView(
-            [validCoordinates[0].latitude, validCoordinates[0].longitude],
-            13
-          );
-
-          mapRef.current = mapInstance;
-          setMap(mapInstance);
-
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-          }).addTo(mapInstance);
-
-          // Use the current landmarks (which includes AI-generated ones)
-          const routeToDisplay = validCoordinates;
-
-          // Calculate distances and add markers
-          const calculatedDistances = [];
-          let totalDist = 0;
-
-          routeToDisplay.forEach((landmark, index) => {
-            // Create marker with custom icon based on index
-            const markerIcon = L.divIcon({
-              className: 'custom-marker',
-              html: `<div style="background-color: ${landmark.isAdditional ? '#10B981' : '#3B82F6'}; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">${index + 1}</div>`,
-              iconSize: [30, 30],
-              iconAnchor: [15, 15]
-            });
-
-            const marker = L.marker([landmark.latitude, landmark.longitude], { icon: markerIcon })
-              .addTo(mapInstance)
-              .bindPopup(`
-                <div class="p-2">
-                  <h3 class="font-bold">${landmark.name}</h3>
-                  <p class="text-sm">Stop ${index + 1}</p>
-                  ${landmark.isAdditional ? '<p class="text-xs text-green-600">AI Recommended</p>' : ''}
-                  ${landmark.description ? `<p class="text-xs mt-1">${landmark.description}</p>` : ''}
-                  ${landmark.popularity ? `<p class="text-xs">Popularity: ${Math.round(landmark.popularity)}/100</p>` : ''}
-                </div>
-              `);
-
-            // Calculate distance if not first point
-            if (index > 0) {
-              const prevLandmark = routeToDisplay[index - 1];
-              const distance = mapInstance.distance(
-                [prevLandmark.latitude, prevLandmark.longitude],
-                [landmark.latitude, landmark.longitude]
-              );
-              
-              totalDist += distance;
-              calculatedDistances.push({
-                from: prevLandmark.name,
-                to: landmark.name,
-                distance: (distance / 1000).toFixed(2)
-              });
-            }
-          });
-
-          // Draw path with better styling
-          const coordinates = routeToDisplay.map(l => [l.latitude, l.longitude]);
-          L.polyline(coordinates, { 
-            color: '#3B82F6', 
-            weight: 4, 
-            opacity: 0.8,
-            dashArray: '5, 10'
-          }).addTo(mapInstance);
-
-          // Fit bounds with padding
-          mapInstance.fitBounds(coordinates, { padding: [20, 20] });
-
-          // Update state
-          setDistances(calculatedDistances);
-          setTotalDistance(totalDist / 1000);
-          setEstimatedTime(Math.ceil((totalDist / 1000) / 30 * 60));
-
-        } catch (error) {
-          console.error("Error initializing map:", error);
-        }
-      }, 100);
-
-    } catch (error) {
-      console.error("Error in map initialization process:", error);
     }
+
+    // Update map with current landmarks
+    updateMapWithLandmarks();
   };
 
   initializeMap();
-}, [selectedLandmarks, itinerary?.routeOptimization?.optimizedLandmarks]); // Key fix: depend on optimizedLandmarks
+}, [selectedLandmarks]);
+
+// ADD THIS NEW useEffect TO UPDATE MAP WHEN ITINERARY CHANGES:
+useEffect(() => {
+  if (mapRef.current && itinerary?.routeOptimization?.optimizedLandmarks) {
+    updateMapWithLandmarks();
+  }
+}, [itinerary?.routeOptimization?.optimizedLandmarks]);
 
   // Generate detailed itinerary
   const generateDetailedItinerary = async () => {

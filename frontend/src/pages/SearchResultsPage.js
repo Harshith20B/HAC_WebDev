@@ -188,9 +188,7 @@ useEffect(() => {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 placeholder="Enter budget in INR"
               />
-              <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Suggested budgets: {formatINR(15000)} (Budget) • {formatINR(35000)} (Mid-range) • {formatINR(75000)} (Luxury)
-              </div>
+             
             </div>
           </div>
         </div>
