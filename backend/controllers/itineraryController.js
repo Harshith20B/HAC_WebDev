@@ -48,71 +48,80 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
 const runKMeansClustering = async (landmarks, numberOfDays) => {
   return new Promise((resolve, reject) => {
     const pythonScript = path.join(__dirname, '../python/clustering.py');
+    
+    // Validate landmarks data before sending
+    const validatedLandmarks = landmarks.map(l => ({
+      name: l.name || 'Unknown',
+      latitude: parseFloat(l.latitude) || 0,
+      longitude: parseFloat(l.longitude) || 0,
+      score: parseFloat(l.score || 50),
+      popularity: parseFloat(l.popularity || 50)
+    })).filter(l => l.latitude !== 0 && l.longitude !== 0);
+
+    if (validatedLandmarks.length === 0) {
+      return reject(new Error("No valid landmarks with coordinates"));
+    }
+
     const landmarkData = JSON.stringify({
-      landmarks: landmarks.map(l => ({
-        name: l.name,
-        latitude: l.latitude,
-        longitude: l.longitude,
-        score: l.score || 50,
-        popularity: l.popularity || 50
-      })),
+      landmarks: validatedLandmarks,
       k: numberOfDays
     });
-    
-    const pythonProcess = spawn('python3', [pythonScript]);
+
+    console.log('Sending to Python:', landmarkData); // Debug log
+
+    const pythonProcess = spawn('python', [pythonScript], {
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+
     let output = '';
     let errorOutput = '';
-    
+
     pythonProcess.stdout.on('data', (data) => {
       output += data.toString();
     });
-    
+
     pythonProcess.stderr.on('data', (data) => {
       errorOutput += data.toString();
+      console.log('Python stderr:', data.toString()); // Debug log
     });
-    
+
+    pythonProcess.on('error', (err) => {
+      console.log('Python process error:', err); // Debug log
+      reject(new Error(`Python process failed to start: ${err.message}`));
+    });
+
     pythonProcess.on('close', (code) => {
+      console.log('Python exit code:', code); // Debug log
+      console.log('Python output:', output); // Debug log
+      console.log('Python stderr:', errorOutput); // Debug log
+
       if (code === 0) {
         try {
-          const result = JSON.parse(output);
-          resolve(result);
+          const result = JSON.parse(output.trim());
+          if (result.error) {
+            reject(new Error(`Clustering error: ${result.error}`));
+          } else {
+            resolve(result);
+          }
         } catch (err) {
-          logger.warn('Failed to parse K-means output, using fallback');
-          resolve(null);
+          logger.error('Failed to parse clustering output:', output);
+          reject(new Error(`Clustering output could not be parsed: ${err.message}`));
         }
       } else {
-        logger.warn('K-means clustering failed:', errorOutput);
-        resolve(null);
+        reject(new Error(`Clustering process exited with error code ${code}: ${errorOutput}`));
       }
     });
-    
-    pythonProcess.stdin.write(landmarkData);
-    pythonProcess.stdin.end();
+
+    try {
+      pythonProcess.stdin.write(landmarkData);
+      pythonProcess.stdin.end();
+    } catch (err) {
+      reject(new Error(`Failed to write to Python process: ${err.message}`));
+    }
   });
 };
 
-// Fallback clustering when Python ML is not available
-const fallbackClustering = (landmarks, numberOfDays) => {
-  const clusters = Array.from({ length: numberOfDays }, () => []);
-  const sortedLandmarks = [...landmarks].sort((a, b) => (b.score || 50) - (a.score || 50));
-  
-  // Distribute landmarks round-robin to ensure even distribution
-  sortedLandmarks.forEach((landmark, index) => {
-    clusters[index % numberOfDays].push(landmark);
-  });
-  
-  return {
-    clusters: clusters.map((cluster, index) => ({
-      day: index + 1,
-      landmarks: cluster,
-      center: cluster.length > 0 ? {
-        latitude: cluster.reduce((sum, l) => sum + l.latitude, 0) / cluster.length,
-        longitude: cluster.reduce((sum, l) => sum + l.longitude, 0) / cluster.length
-      } : null
-    })),
-    silhouette_score: 0.5 // Dummy score for fallback
-  };
-};
+
 
 // Optimize route within each cluster
 const optimizeClusterRoute = (landmarks) => {
@@ -316,7 +325,6 @@ const createEnhancedItinerary = (clusters, budget, tripDetails) => {
           popularity: Math.round(landmark.popularity || 50),
           rating: (landmark.rating || 3.5).toFixed(1),
           tips: `${landmark.description || 'Popular attraction'}. Popularity Score: ${Math.round(landmark.score || 50)}/100`,
-          // ADD THESE LINES:
           landmark: {
             name: landmark.name,
             latitude: landmark.latitude,
@@ -328,7 +336,6 @@ const createEnhancedItinerary = (clusters, budget, tripDetails) => {
         currentTime += duration;
         totalCost += entryCost;
       }
-      
     });
 
     // Add lunch break if schedule is long enough
@@ -478,6 +485,7 @@ Use realistic Indian prices and ensure full day coverage.`;
 };
 
 // Main controller
+// Main controller - Modified to include optimized landmarks in response
 const generateItinerary = async (req, res) => {
   try {
     const { landmarks, tripDetails } = req.body;
@@ -522,8 +530,37 @@ const generateItinerary = async (req, res) => {
 
     // Apply ML clustering
     logger.info("Applying K-means clustering for optimal grouping...");
-    const clusteringResult = await runKMeansClustering(enhancedLandmarks, tripDetails.numberOfDays);
-    const clusters = clusteringResult || fallbackClustering(enhancedLandmarks, tripDetails.numberOfDays);
+    let clusters;
+    try {
+      const clusteringResult = await runKMeansClustering(enhancedLandmarks, tripDetails.numberOfDays);
+      clusters = clusteringResult || fallbackClustering(enhancedLandmarks, tripDetails.numberOfDays);
+    } catch (clusteringError) {
+      logger.error("Clustering failed, using fallback:", clusteringError.message);
+      clusters = fallbackClustering(enhancedLandmarks, tripDetails.numberOfDays);
+    }
+
+    // NEW: Create optimized landmarks array from all clusters
+    const optimizedLandmarks = [];
+    const optimizedLandmarksByDay = {};
+    
+    clusters.clusters.forEach(cluster => {
+      // Optimize route within each cluster
+      const optimizedClusterLandmarks = optimizeClusterRoute(cluster.landmarks);
+      
+      // Add to overall optimized landmarks array
+      optimizedLandmarks.push(...optimizedClusterLandmarks);
+      
+      // Group by day for easier access
+      optimizedLandmarksByDay[`day${cluster.day}`] = optimizedClusterLandmarks.map((landmark, index) => ({
+        ...landmark,
+        dayOrder: index + 1,
+        clusterDay: cluster.day,
+        estimatedTravelTime: index > 0 ? calculateTravelTime(
+          optimizedClusterLandmarks[index - 1],
+          landmark
+        ) : 0
+      }));
+    });
 
     // Generate enhanced itinerary
     const aiItinerary = await generateEnhancedAIItinerary(
@@ -555,14 +592,20 @@ const generateItinerary = async (req, res) => {
       success: true,
       data: {
         ...finalItinerary,
-        routeOptimization: {
-          ...finalItinerary.routeOptimization,
-          optimizedLandmarks: clusters.clusters.reduce((acc, cluster) => {
-            return acc.concat(optimizeClusterRoute(cluster.landmarks));
-          }, []),
-          totalDistance: +totalDistance.toFixed(2),
-          averageDistancePerDay: +(totalDistance / tripDetails.numberOfDays).toFixed(2),
-          optimizationMethod: "Nearest neighbor within ML clusters"
+        // NEW: Add optimized landmarks to response
+        optimizedLandmarks: optimizedLandmarks,
+        optimizedLandmarksByDay: optimizedLandmarksByDay,
+        landmarkSummary: {
+          totalLandmarks: optimizedLandmarks.length,
+          originalLandmarks: landmarks.length,
+          enhancedLandmarks: enhancedLandmarks.length,
+          addedLandmarks: enhancedLandmarks.length - landmarks.length,
+          landmarksByDay: Object.keys(optimizedLandmarksByDay).reduce((acc, day) => {
+            acc[day] = optimizedLandmarksByDay[day].length;
+            return acc;
+          }, {}),
+          averagePopularity: (optimizedLandmarks.reduce((sum, l) => sum + (l.popularity || 50), 0) / optimizedLandmarks.length).toFixed(1),
+          averageScore: (optimizedLandmarks.reduce((sum, l) => sum + (l.score || 50), 0) / optimizedLandmarks.length).toFixed(1)
         },
         mlAnalysis: {
           clusteringMethod: "K-means",
@@ -605,6 +648,26 @@ const generateItinerary = async (req, res) => {
       error: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
   }
+};
+
+// Helper function to calculate estimated travel time between landmarks
+const calculateTravelTime = (fromLandmark, toLandmark) => {
+  const distance = calculateDistance(
+    fromLandmark.latitude,
+    fromLandmark.longitude,
+    toLandmark.latitude,
+    toLandmark.longitude
+  );
+  
+  // Estimate travel time based on distance (assuming average speed of 30 km/h in city)
+  const timeInHours = distance / 30;
+  const timeInMinutes = Math.round(timeInHours * 60);
+  
+  return {
+    distanceKm: +distance.toFixed(2),
+    estimatedMinutes: timeInMinutes,
+    estimatedHours: +(timeInHours).toFixed(2)
+  };
 };
 
 module.exports = {

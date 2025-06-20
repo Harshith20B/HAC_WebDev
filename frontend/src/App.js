@@ -123,7 +123,7 @@ function App() {
       <nav className="p-4 text-white w-full dark:bg-gray-900 bg-blue-600">
         <div className="container mx-auto flex justify-between items-center">
           <div className="text-xl font-bold">
-            <Link to="/">Tourify</Link>
+            <Link to="/">TravelSphere</Link>
           </div>
           
           <button

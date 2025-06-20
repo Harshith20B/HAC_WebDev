@@ -330,32 +330,47 @@ def calculate_cluster_quality(clusters):
         'balanced_distribution': abs(len(clusters) - avg_landmarks_per_cluster) < 2
     }
 
+# REPLACE the main() function in your Python script with this:
+
 def main():
     """Main function to handle clustering request"""
     try:
+        # Add debug logging
+        import sys
+        print("Python script started", file=sys.stderr)
+        
         # Read input from stdin
         input_data = sys.stdin.read()
+        print(f"Received input: {input_data[:200]}...", file=sys.stderr)
+        
         data = json.loads(input_data)
         
         landmarks = data.get('landmarks', [])
         k = data.get('k', 3)
         
+        print(f"Processing {len(landmarks)} landmarks for {k} days", file=sys.stderr)
+        
         # Validate landmarks
         valid_landmarks = validate_landmarks(landmarks)
+        print(f"Valid landmarks: {len(valid_landmarks)}", file=sys.stderr)
         
         if len(valid_landmarks) == 0:
-            print(json.dumps({
+            result = {
                 'error': 'No valid landmarks provided',
                 'clusters': [],
                 'silhouette_score': 0.0
-            }))
+            }
+            print(json.dumps(result))
             return
         
         # Perform clustering
+        print("Starting clustering...", file=sys.stderr)
         clustering_result = perform_clustering(valid_landmarks, k)
+        print("Clustering completed", file=sys.stderr)
         
         # Balance clusters to match target days
         balanced_clusters = balance_clusters(clustering_result['clusters'], k)
+        print(f"Balanced to {len(balanced_clusters)} clusters", file=sys.stderr)
         
         # Calculate quality metrics
         quality_metrics = calculate_cluster_quality(balanced_clusters)
@@ -371,20 +386,36 @@ def main():
             'clustering_method': 'K-means with popularity weighting'
         }
         
-        print(json.dumps(result, indent=2))
+        print("Sending result to stdout", file=sys.stderr)
+        print(json.dumps(result))
         
     except json.JSONDecodeError as e:
-        print(json.dumps({
+        error_result = {
             'error': f'Invalid JSON input: {str(e)}',
             'clusters': [],
             'silhouette_score': 0.0
-        }))
+        }
+        print(json.dumps(error_result))
+        
+    except ImportError as e:
+        error_result = {
+            'error': f'Missing Python dependencies: {str(e)}. Please install: pip install numpy scikit-learn',
+            'clusters': [],
+            'silhouette_score': 0.0
+        }
+        print(json.dumps(error_result))
+        
     except Exception as e:
-        print(json.dumps({
+        print(f"Exception occurred: {str(e)}", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        
+        error_result = {
             'error': f'Clustering failed: {str(e)}',
             'clusters': [],
             'silhouette_score': 0.0
-        }))
+        }
+        print(json.dumps(error_result))
 
 if __name__ == "__main__":
     main()

@@ -179,12 +179,14 @@ const updateMapWithLandmarks = () => {
   // Initialize map effect
 // Replace the map initialization useEffect with this fixed version:
 const getCurrentLandmarks = () => {
-  if (itinerary?.routeOptimization?.optimizedLandmarks && itinerary.routeOptimization.optimizedLandmarks.length > 0) {
-    return itinerary.routeOptimization.optimizedLandmarks;
+  if (itinerary?.optimizedLandmarks && 
+      itinerary.optimizedLandmarks.length > 0) {
+    return itinerary.optimizedLandmarks;
   }
   return selectedLandmarks;
 };
 // REPLACE THE ENTIRE useEffect FOR MAP INITIALIZATION WITH:
+// Replace the map initialization useEffect with:
 useEffect(() => {
   const initializeMap = () => {
     if (!selectedLandmarks.length) return;
@@ -220,12 +222,11 @@ useEffect(() => {
   initializeMap();
 }, [selectedLandmarks]);
 
-// ADD THIS NEW useEffect TO UPDATE MAP WHEN ITINERARY CHANGES:
 useEffect(() => {
-  if (mapRef.current && itinerary?.routeOptimization?.optimizedLandmarks) {
+  if (mapRef.current && itinerary?.optimizedLandmarks) {
     updateMapWithLandmarks();
   }
-}, [itinerary?.routeOptimization?.optimizedLandmarks]);
+}, [itinerary?.optimizedLandmarks]);
 
   // Generate detailed itinerary
   const generateDetailedItinerary = async () => {
@@ -258,6 +259,15 @@ useEffect(() => {
       setIsGeneratingItinerary(false);
     }
   };
+
+  // Add this useEffect to debug the received itinerary data
+useEffect(() => {
+  if (itinerary) {
+    console.log('Received itinerary:', itinerary);
+    console.log('Optimized landmarks:', itinerary.optimizedLandmarks);
+    console.log('Landmark summary:', itinerary.landmarkSummary);
+  }
+}, [itinerary]);
 
   // Auto-generate itinerary on component mount
   useEffect(() => {
@@ -310,7 +320,7 @@ useEffect(() => {
               <div className="ml-3">
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Distance</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {itinerary?.routeOptimization?.totalDistance?.toFixed(1) || totalDistance.toFixed(1)} km
+                  {itinerary?.landmarkSummary?.totalDistance?.toFixed(1) || totalDistance.toFixed(1)} km
                 </p>
               </div>
             </div>
@@ -322,7 +332,7 @@ useEffect(() => {
               <div className="ml-3">
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Travel Time</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {itinerary?.routeOptimization?.totalEstimatedTime || estimatedTime} min
+                  {itinerary?.landmarkSummary?.totalEstimatedTime || estimatedTime} min
                 </p>
               </div>
             </div>
@@ -360,7 +370,7 @@ useEffect(() => {
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
                 <Navigation className="mr-2" />
                 Optimized Route Order
-                {itinerary?.routeOptimization?.optimizedLandmarks && (
+                {itinerary?.optimizedLandmarks && (
                   <span className="ml-2 px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded-full">
                     AI Enhanced
                   </span>
