@@ -1,6 +1,6 @@
 const axios = require("axios");
 const logger = require("pino")();
-
+const { getEnhancedLandmarksData } = require('./popularity-service');
 /**
  * Enhanced Popularity and Rating Service
  * Uses multiple free APIs to get comprehensive landmark data

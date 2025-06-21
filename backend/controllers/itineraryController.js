@@ -10,22 +10,27 @@ const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
 const calculateLandmarkScore = (landmark, preferences = {}) => {
   let score = 0;
   
-  // Base popularity score (0-100)
+  // Use real popularity data (now from multiple sources)
   const popularity = landmark.popularity || 50;
   score += popularity * 0.4;
   
-  // Rating score (0-50)
+  // Use real rating data
   const rating = landmark.rating || 3.5;
   score += (rating / 5) * 50 * 0.3;
   
-  // Category preference score (0-30)
+  // Category preference score
   const category = landmark.category || landmark.description || 'general';
   const categoryWeight = preferences[category.toLowerCase()] || 1;
-  score += categoryWeight * 30 * 0.2;
+  score += categoryWeight * 30 * 0.15;
+  
+  // Bonus for verified/high-confidence data
+  if (landmark.confidence === 'high') score += 5;
+  if (landmark.verified) score += 3;
+  if (landmark.hasWikipediaEntry) score += 5;
   
   // Distance penalty (closer landmarks get higher scores)
   const distancePenalty = Math.min(landmark.distanceFromCenter || 0, 20);
-  score -= distancePenalty * 0.1;
+  score -= distancePenalty * 0.05;
   
   return Math.max(0, Math.min(100, score));
 };
@@ -180,36 +185,47 @@ const calculateOptimalLandmarksPerDay = (budget, numberOfDays, landmarks) => {
 // Fetch enhanced landmarks with popularity data
 const fetchEnhancedLandmarks = async (location, userLandmarks, tripDetails) => {
   try {
+    // First, enhance user landmarks with real popularity data
+    const enhancedUserLandmarks = await getEnhancedLandmarksData(userLandmarks, location);
+    
+    // Calculate how many additional landmarks we need
+    const { optimalPerDay } = calculateOptimalLandmarksPerDay(
+      tripDetails.budget, 
+      tripDetails.numberOfDays, 
+      enhancedUserLandmarks
+    );
+    
+    const requiredCount = Math.max(0, (optimalPerDay * tripDetails.numberOfDays) - enhancedUserLandmarks.length);
+    
+    // If we don't need additional landmarks, return enhanced user landmarks
+    if (requiredCount <= 0) {
+      return enhancedUserLandmarks.map(l => ({ 
+        ...l, 
+        score: calculateLandmarkScore(l, tripDetails.preferences || {}),
+      }));
+    }
+
+    // Fetch additional landmarks from OpenTripMap (your existing code)
     const apiKey = process.env.OPENTRIPMAP_API_KEY;
-    if (!apiKey) return userLandmarks.map(l => ({ ...l, score: 50 }));
+    if (!apiKey) {
+      return enhancedUserLandmarks.map(l => ({ 
+        ...l, 
+        score: calculateLandmarkScore(l, tripDetails.preferences || {}),
+      }));
+    }
 
     const geocodeUrl = `https://api.opentripmap.com/0.1/en/places/geoname?name=${encodeURIComponent(location)}&apikey=${apiKey}`;
     const geoRes = await axios.get(geocodeUrl, { timeout: 10000 });
     const { lat, lon } = geoRes.data;
 
-    const { optimalPerDay } = calculateOptimalLandmarksPerDay(
-      tripDetails.budget, 
-      tripDetails.numberOfDays, 
-      userLandmarks
-    );
-    
-    const requiredCount = Math.max(0, (optimalPerDay * tripDetails.numberOfDays) - userLandmarks.length);
-    if (requiredCount <= 0) {
-      return userLandmarks.map(l => ({ 
-        ...l, 
-        score: calculateLandmarkScore(l, tripDetails.preferences || {}),
-        distanceFromCenter: calculateDistance(l.latitude, l.longitude, lat, lon)
-      }));
-    }
-
     const radius = 25000;
     const landmarkUrl = `https://api.opentripmap.com/0.1/en/places/radius?radius=${radius}&lon=${lon}&lat=${lat}&apikey=${apiKey}&limit=100&kinds=interesting_places,museums,monuments,architecture,historic,cultural,natural,amusements`;
     const landRes = await axios.get(landmarkUrl, { timeout: 15000 });
 
-    const existing = new Set(userLandmarks.map((l) => l.name?.toLowerCase()));
-    const additional = [];
+    const existing = new Set(enhancedUserLandmarks.map((l) => l.name?.toLowerCase()));
+    const additionalLandmarks = [];
 
-    // Enhanced landmark processing with popularity scoring
+    // Process additional landmarks from OpenTripMap
     for (const feature of landRes.data.features) {
       const name = feature?.properties?.name;
       if (
@@ -217,49 +233,50 @@ const fetchEnhancedLandmarks = async (location, userLandmarks, tripDetails) => {
         name.length > 2 &&
         name !== 'Unknown Name' &&
         !existing.has(name.toLowerCase()) &&
-        additional.length < requiredCount * 2 // Fetch more to filter by popularity
+        additionalLandmarks.length < requiredCount * 2
       ) {
-        const landmark = {
+        additionalLandmarks.push({
           name,
           latitude: feature.geometry.coordinates[1],
           longitude: feature.geometry.coordinates[0],
           description: feature.properties.kinds?.split(",")[0]?.replace("_", " ") || "Attraction",
           category: feature.properties.kinds?.split(",")[0] || "general",
-          popularity: Math.random() * 100, // In real scenario, this would come from API
-          rating: 3 + Math.random() * 2, // Random rating 3-5
-          distanceFromCenter: calculateDistance(
-            feature.geometry.coordinates[1],
-            feature.geometry.coordinates[0],
-            lat,
-            lon
-          ),
           isAdditional: true,
-        };
-        
-        landmark.score = calculateLandmarkScore(landmark, tripDetails.preferences || {});
-        additional.push(landmark);
+        });
       }
     }
 
-    // Sort by popularity and score, take the best ones
-    additional.sort((a, b) => b.score - a.score);
-    const topAdditional = additional.slice(0, requiredCount);
-
-    // Add scores to user landmarks
-    const scoredUserLandmarks = userLandmarks.map(l => ({
+    // Enhance additional landmarks with real popularity data
+    const enhancedAdditionalLandmarks = await getEnhancedLandmarksData(additionalLandmarks, location);
+    
+    // Calculate scores for all landmarks
+    const allLandmarks = [...enhancedUserLandmarks, ...enhancedAdditionalLandmarks];
+    const scoredLandmarks = allLandmarks.map(l => ({
       ...l,
       score: calculateLandmarkScore(l, tripDetails.preferences || {}),
       distanceFromCenter: calculateDistance(l.latitude, l.longitude, lat, lon),
-      isAdditional: false
     }));
 
-    logger.info(`Added ${topAdditional.length} additional high-score landmarks`);
-    return [...scoredUserLandmarks, ...topAdditional];
+    // Sort by score and take the best ones
+    scoredLandmarks.sort((a, b) => b.score - a.score);
+    const finalLandmarks = scoredLandmarks.slice(0, optimalPerDay * tripDetails.numberOfDays);
+
+    logger.info(`Enhanced ${finalLandmarks.length} landmarks with real popularity data from multiple sources`);
+    return finalLandmarks;
+
   } catch (err) {
     logger.warn("Failed to fetch enhanced landmarks:", err.message);
-    return userLandmarks.map(l => ({ ...l, score: 50 }));
+    // Fallback to user landmarks with default scores
+    return userLandmarks.map(l => ({ 
+      ...l, 
+      popularity: 50,
+      rating: 3.5,
+      score: 50,
+      source: 'fallback'
+    }));
   }
 };
+
 
 // Create enhanced itinerary with dynamic scheduling
 const createEnhancedItinerary = (clusters, budget, tripDetails) => {
