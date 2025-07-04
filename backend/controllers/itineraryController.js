@@ -7,10 +7,10 @@ const path = require('path');
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
 
 // Enhanced landmark scoring based on popularity and other factors
-const calculateLandmarkScore = (landmark, preferences = {}) => {
+const calculateLandmarkScore = (landmark, preferences = {}, budgetLevel = 'medium') => {
   let score = 0;
   
-  // Use real popularity data (now from multiple sources)
+  // Use real popularity data
   const popularity = landmark.popularity || 50;
   score += popularity * 0.4;
   
@@ -23,12 +23,27 @@ const calculateLandmarkScore = (landmark, preferences = {}) => {
   const categoryWeight = preferences[category.toLowerCase()] || 1;
   score += categoryWeight * 30 * 0.15;
   
+  // Budget-based scoring adjustments
+  const budgetConfig = BUDGET_RANGES[budgetLevel];
+  if (budgetLevel === 'low') {
+    // Prefer free or low-cost attractions
+    if (landmark.entryCost && landmark.entryCost < 100) score += 10;
+    if (landmark.entryCost === 0) score += 15;
+  } else if (budgetLevel === 'high') {
+    // Can prioritize premium experiences
+    if (landmark.isPremium || (landmark.entryCost && landmark.entryCost > 500)) score += 5;
+  }
+  
   // Bonus for verified/high-confidence data
   if (landmark.confidence === 'high') score += 5;
   if (landmark.verified) score += 3;
   if (landmark.hasWikipediaEntry) score += 5;
   
-  // Distance penalty (closer landmarks get higher scores)
+  // Source bonus
+  if (landmark.source === 'user') score += 2;
+  if (landmark.source === 'opentripmap') score += 1;
+  
+  // Distance penalty
   const distancePenalty = Math.min(landmark.distanceFromCenter || 0, 20);
   score -= distancePenalty * 0.05;
   
@@ -185,8 +200,17 @@ const calculateOptimalLandmarksPerDay = (budget, numberOfDays, landmarks) => {
 // Fetch enhanced landmarks with popularity data
 const fetchEnhancedLandmarks = async (location, userLandmarks, tripDetails) => {
   try {
-    // First, enhance user landmarks with real popularity data
-    const enhancedUserLandmarks = await getEnhancedLandmarksData(userLandmarks, location);
+    // First, enhance user landmarks with scoring
+    const enhancedUserLandmarks = userLandmarks.map(landmark => ({
+      ...landmark,
+      popularity: landmark.popularity || 50, // Default popularity
+      rating: landmark.rating || 3.5, // Default rating
+      category: landmark.category || landmark.description || 'general',
+      confidence: 'user_provided',
+      verified: true,
+      hasWikipediaEntry: false,
+      source: 'user'
+    }));
     
     // Calculate how many additional landmarks we need
     const { optimalPerDay } = calculateOptimalLandmarksPerDay(
@@ -205,9 +229,10 @@ const fetchEnhancedLandmarks = async (location, userLandmarks, tripDetails) => {
       }));
     }
 
-    // Fetch additional landmarks from OpenTripMap (your existing code)
+    // Fetch additional landmarks from OpenTripMap
     const apiKey = process.env.OPENTRIPMAP_API_KEY;
     if (!apiKey) {
+      logger.warn("OpenTripMap API key not found, using only user landmarks");
       return enhancedUserLandmarks.map(l => ({ 
         ...l, 
         score: calculateLandmarkScore(l, tripDetails.preferences || {}),
@@ -235,22 +260,76 @@ const fetchEnhancedLandmarks = async (location, userLandmarks, tripDetails) => {
         !existing.has(name.toLowerCase()) &&
         additionalLandmarks.length < requiredCount * 2
       ) {
-        additionalLandmarks.push({
-          name,
-          latitude: feature.geometry.coordinates[1],
-          longitude: feature.geometry.coordinates[0],
-          description: feature.properties.kinds?.split(",")[0]?.replace("_", " ") || "Attraction",
-          category: feature.properties.kinds?.split(",")[0] || "general",
-          isAdditional: true,
-        });
+        // Get detailed information for each landmark
+        const detailsUrl = `https://api.opentripmap.com/0.1/en/places/xid/${feature.properties.xid}?apikey=${apiKey}`;
+        
+        try {
+          const detailsRes = await axios.get(detailsUrl, { timeout: 5000 });
+          const details = detailsRes.data;
+          
+          // Extract popularity indicators from OpenTripMap data
+          const wikidata = details.wikidata || null;
+          const wikipedia = details.wikipedia || null;
+          const rate = details.rate || 0; // OpenTripMap's internal rating (0-7)
+          
+          // Calculate estimated popularity based on available data
+          let estimatedPopularity = 30; // Base popularity
+          
+          if (wikipedia) estimatedPopularity += 25; // Has Wikipedia entry
+          if (wikidata) estimatedPopularity += 15; // Has Wikidata entry
+          if (rate > 0) estimatedPopularity += (rate * 5); // Rate boost (0-35)
+          if (details.kinds && details.kinds.includes('museums')) estimatedPopularity += 10;
+          if (details.kinds && details.kinds.includes('monuments')) estimatedPopularity += 15;
+          
+          // Cap at 100
+          estimatedPopularity = Math.min(100, estimatedPopularity);
+          
+          additionalLandmarks.push({
+            name,
+            latitude: feature.geometry.coordinates[1],
+            longitude: feature.geometry.coordinates[0],
+            description: feature.properties.kinds?.split(",")[0]?.replace("_", " ") || "Attraction",
+            category: feature.properties.kinds?.split(",")[0] || "general",
+            popularity: estimatedPopularity,
+            rating: rate > 0 ? Math.min(5, (rate / 7) * 5) : 3.5, // Convert 0-7 to 0-5 scale
+            hasWikipediaEntry: !!wikipedia,
+            wikidata: wikidata,
+            wikipedia: wikipedia,
+            confidence: rate > 3 ? 'high' : 'medium',
+            verified: !!wikipedia || !!wikidata,
+            source: 'opentripmap',
+            isAdditional: true,
+            openTripMapId: feature.properties.xid,
+            kinds: details.kinds || feature.properties.kinds
+          });
+          
+        } catch (detailError) {
+          // If details fetch fails, add with basic info
+          logger.warn(`Failed to fetch details for ${name}:`, detailError.message);
+          additionalLandmarks.push({
+            name,
+            latitude: feature.geometry.coordinates[1],
+            longitude: feature.geometry.coordinates[0],
+            description: feature.properties.kinds?.split(",")[0]?.replace("_", " ") || "Attraction",
+            category: feature.properties.kinds?.split(",")[0] || "general",
+            popularity: 40, // Default popularity for failed details
+            rating: 3.5,
+            hasWikipediaEntry: false,
+            confidence: 'low',
+            verified: false,
+            source: 'opentripmap',
+            isAdditional: true,
+            openTripMapId: feature.properties.xid
+          });
+        }
+        
+        // Add small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
-
-    // Enhance additional landmarks with real popularity data
-    const enhancedAdditionalLandmarks = await getEnhancedLandmarksData(additionalLandmarks, location);
     
     // Calculate scores for all landmarks
-    const allLandmarks = [...enhancedUserLandmarks, ...enhancedAdditionalLandmarks];
+    const allLandmarks = [...enhancedUserLandmarks, ...additionalLandmarks];
     const scoredLandmarks = allLandmarks.map(l => ({
       ...l,
       score: calculateLandmarkScore(l, tripDetails.preferences || {}),
@@ -261,7 +340,9 @@ const fetchEnhancedLandmarks = async (location, userLandmarks, tripDetails) => {
     scoredLandmarks.sort((a, b) => b.score - a.score);
     const finalLandmarks = scoredLandmarks.slice(0, optimalPerDay * tripDetails.numberOfDays);
 
-    logger.info(`Enhanced ${finalLandmarks.length} landmarks with real popularity data from multiple sources`);
+    logger.info(`Enhanced ${finalLandmarks.length} landmarks: ${enhancedUserLandmarks.length} user + ${additionalLandmarks.length} additional`);
+    logger.info(`Average popularity: ${(finalLandmarks.reduce((sum, l) => sum + l.popularity, 0) / finalLandmarks.length).toFixed(1)}`);
+    
     return finalLandmarks;
 
   } catch (err) {
@@ -269,9 +350,9 @@ const fetchEnhancedLandmarks = async (location, userLandmarks, tripDetails) => {
     // Fallback to user landmarks with default scores
     return userLandmarks.map(l => ({ 
       ...l, 
-      popularity: 50,
-      rating: 3.5,
-      score: 50,
+      popularity: l.popularity || 50,
+      rating: l.rating || 3.5,
+      score: calculateLandmarkScore(l, tripDetails.preferences || {}),
       source: 'fallback'
     }));
   }
@@ -279,36 +360,46 @@ const fetchEnhancedLandmarks = async (location, userLandmarks, tripDetails) => {
 
 
 // Create enhanced itinerary with dynamic scheduling
-const createEnhancedItinerary = (clusters, budget, tripDetails) => {
-  const { budgetPerDay } = calculateOptimalLandmarksPerDay(
-    budget, 
-    tripDetails.numberOfDays, 
-    []
-  );
+const createEnhancedItinerary = async (clusters, budget, tripDetails) => {
+  const budgetLevel = getBudgetLevel(budget);
+  const budgetConfig = BUDGET_RANGES[budgetLevel];
+  const budgetPerDay = budget / tripDetails.numberOfDays;
 
-  const days = clusters.map(cluster => {
+  const days = await Promise.all(clusters.map(async (cluster) => {
     const schedule = [];
     let currentTime = 8; // Start at 8 AM
-    let dayBudget = budgetPerDay;
-    let totalCost = 0;
+    let totalEntranceCost = 0;
 
     const optimizedLandmarks = optimizeClusterRoute(cluster.landmarks);
 
-    optimizedLandmarks.forEach((landmark, index) => {
-      if (currentTime >= 19) return; // Stop scheduling after 7 PM
+    for (let index = 0; index < optimizedLandmarks.length; index++) {
+      const landmark = optimizedLandmarks[index];
+      
+      if (currentTime >= 19) break; // Stop scheduling after 7 PM
 
       // Calculate visit duration based on landmark type and popularity
-      const baseDuration = 1.5;
+      const baseDuration = budgetLevel === 'low' ? 1 : budgetLevel === 'medium' ? 1.5 : 2;
       const popularityMultiplier = (landmark.popularity || 50) / 100;
       const duration = Math.max(1, baseDuration + (popularityMultiplier * 0.5));
       
-      // Calculate costs
-      const entryCost = Math.floor(50 + (landmark.popularity || 50) * 4); // 50-450 INR
-      const transportCost = index > 0 ? Math.floor(50 + Math.random() * 150) : 0; // 50-200 INR
+      // Calculate entrance costs based on budget level
+      let entranceCost;
+      if (budgetLevel === 'low') {
+        entranceCost = Math.floor(20 + (landmark.popularity || 50) * 2); // ₹20-120
+      } else if (budgetLevel === 'medium') {
+        entranceCost = Math.floor(50 + (landmark.popularity || 50) * 4); // ₹50-450
+      } else {
+        entranceCost = Math.floor(100 + (landmark.popularity || 50) * 8); // ₹100-900
+      }
 
-      if (totalCost + entryCost + transportCost <= dayBudget && currentTime + duration <= 19) {
+      // Check if we can afford this landmark
+      if (totalEntranceCost + entranceCost <= budgetPerDay * 0.8 && currentTime + duration <= 19) {
+        
         // Add travel time if not first landmark
         if (index > 0) {
+          const travelInfo = await calculateTravelTime(optimizedLandmarks[index - 1], landmark);
+          const travelTimeHours = travelInfo.durationMinutes / 60;
+          
           const travelHour = Math.floor(currentTime);
           const travelMinute = Math.floor((currentTime % 1) * 60);
           const travelTimeStr = `${travelHour}:${travelMinute.toString().padStart(2, '0')} ${travelHour >= 12 ? 'PM' : 'AM'}`;
@@ -317,14 +408,15 @@ const createEnhancedItinerary = (clusters, budget, tripDetails) => {
             time: travelTimeStr,
             activity: `Travel to ${landmark.name}`,
             location: "En route",
-            duration: "30 minutes",
-            cost: transportCost,
+            duration: travelInfo.duration,
+            distance: travelInfo.distance,
+            cost: 0, // Not showing travel cost as requested
             costType: "transport",
-            tips: "Use app-based cabs or local transport for better rates"
+            travelInfo: travelInfo,
+            tips: `Distance: ${travelInfo.distance} • Travel time: ${travelInfo.duration}`
           });
 
-          currentTime += 0.5;
-          totalCost += transportCost;
+          currentTime += travelTimeHours;
         }
 
         // Add visit activity
@@ -337,11 +429,11 @@ const createEnhancedItinerary = (clusters, budget, tripDetails) => {
           activity: `Visit ${landmark.name}`,
           location: landmark.name,
           duration: `${Math.floor(duration)} hours ${Math.floor((duration % 1) * 60)} minutes`,
-          cost: entryCost,
+          cost: entranceCost,
           costType: "entry",
           popularity: Math.round(landmark.popularity || 50),
           rating: (landmark.rating || 3.5).toFixed(1),
-          tips: `${landmark.description || 'Popular attraction'}. Popularity Score: ${Math.round(landmark.score || 50)}/100`,
+          tips: `${landmark.description || 'Popular attraction'}. Entry fee: ₹${entranceCost}`,
           landmark: {
             name: landmark.name,
             latitude: landmark.latitude,
@@ -351,23 +443,25 @@ const createEnhancedItinerary = (clusters, budget, tripDetails) => {
         });
 
         currentTime += duration;
-        totalCost += entryCost;
+        totalEntranceCost += entranceCost;
       }
-    });
+    }
 
     // Add lunch break if schedule is long enough
     if (schedule.length > 2 && currentTime < 17) {
       const lunchHour = Math.floor(13);
       const lunchTimeStr = `${lunchHour}:00 PM`;
       
+      const lunchCost = budgetLevel === 'low' ? 0 : budgetLevel === 'medium' ? 0 : 0; // Not including meal costs
+      
       schedule.splice(Math.ceil(schedule.length / 2), 0, {
         time: lunchTimeStr,
         activity: "Lunch Break",
         location: "Local restaurant",
         duration: "1 hour",
-        cost: 0,
+        cost: lunchCost,
         costType: "meal",
-        tips: "Try local cuisine - budget not included, explore street food"
+        tips: `Try local cuisine (${budgetLevel} budget friendly options available)`
       });
     }
 
@@ -376,34 +470,44 @@ const createEnhancedItinerary = (clusters, budget, tripDetails) => {
       date: `Day ${cluster.day}`,
       schedule,
       dayBudget: budgetPerDay,
-      actualCost: totalCost,
-      savedAmount: budgetPerDay - totalCost,
-      landmarkCount: optimizedLandmarks.length
+      actualEntranceCost: totalEntranceCost,
+      savedAmount: budgetPerDay - totalEntranceCost,
+      landmarkCount: optimizedLandmarks.length,
+      budgetLevel: budgetLevel
     };
-  });
+  }));
 
   return {
     itinerary: { days },
     budgetBreakdown: {
-      transport: Math.floor(budget * 0.35),
-      attractions: Math.floor(budget * 0.65),
+      level: budgetLevel,
+      range: BUDGET_RANGES[budgetLevel].label,
+      attractions: Math.floor(budget * 0.8), // 80% for attractions
+      miscellaneous: Math.floor(budget * 0.2), // 20% for misc (food, transport, etc.)
       total: budget,
-      dailyAverage: Math.floor(budget / tripDetails.numberOfDays)
+      dailyAverage: Math.floor(budget / tripDetails.numberOfDays),
+      note: "Transport costs vary significantly based on mode of travel chosen"
     },
     tips: [
+      `Budget Level: ${BUDGET_RANGES[budgetLevel].label}`,
+      "Entry fees shown are estimates - actual prices may vary",
+      "Travel times include estimated road distances and traffic conditions",
+      "Transport costs not included - use local apps for real-time pricing",
+      budgetLevel === 'low' ? "Focus on free/low-cost attractions and street food" :
+      budgetLevel === 'medium' ? "Good balance of popular attractions and local experiences" :
+      "Premium experiences and comfortable travel options available",
       "Book tickets online for popular attractions to avoid queues",
-      "Use app-based transport for transparent pricing",
-      "Visit popular landmarks early morning or late afternoon",
-      "Carry cash as many places don't accept cards",
-      "Download offline maps and translation apps",
-      "Check landmark ratings and popularity before visiting"
+      "Check landmark timings before visiting"
     ]
   };
 };
 
 // Enhanced AI prompt with popularity and ML insights
+// Enhanced AI prompt with better time utilization
 const generateEnhancedAIItinerary = async (clusters, tripDetails, mlMetrics) => {
   const { location, numberOfDays, budget } = tripDetails;
+  const budgetLevel = getBudgetLevel(budget);
+  const budgetConfig = BUDGET_RANGES[budgetLevel];
   
   const clusterInfo = clusters.map(cluster => ({
     day: cluster.day,
@@ -411,26 +515,48 @@ const generateEnhancedAIItinerary = async (clusters, tripDetails, mlMetrics) => 
       name: l.name,
       popularity: Math.round(l.popularity || 50),
       score: Math.round(l.score || 50),
-      rating: (l.rating || 3.5).toFixed(1)
+      rating: (l.rating || 3.5).toFixed(1),
+      estimatedVisitTime: l.estimatedVisitTime || 90 // Default 90 minutes per landmark
     }))
   }));
 
   const prompt = `Create a detailed ${numberOfDays}-day travel itinerary for ${location}, India with budget ₹${budget} INR.
 
-LANDMARK CLUSTERS (Generated using K-means ML algorithm):
+BUDGET ANALYSIS:
+- Budget Level: ${budgetConfig.label}
+- Daily Budget: ₹${Math.floor(budget / numberOfDays)}
+- Focus: ${budgetLevel === 'low' ? 'Budget-friendly attractions, free experiences, street food' : 
+           budgetLevel === 'medium' ? 'Mix of popular attractions and local experiences' : 
+           'Premium attractions, comfortable experiences, quality dining'}
+
+LANDMARK CLUSTERS (ML-optimized):
 ${JSON.stringify(clusterInfo, null, 2)}
 
-ML INSIGHTS:
-- Clustering Quality Score: ${(mlMetrics?.silhouette_score || 0.5).toFixed(2)}
-- Landmarks grouped by geographical proximity and popularity
-- High-popularity landmarks prioritized in scheduling
+IMPORTANT REQUIREMENTS:
+1. MUST include ALL landmarks provided in the clusters for each day
+2. Schedule activities from 8 AM to 8 PM (12 hours)
+3. Each landmark visit should include:
+   - Minimum 1 hour for quick visits
+   - 1.5-2 hours for moderate popularity (60-80)
+   - 2-3 hours for high popularity (80+)
+4. Include realistic travel times between locations (15-45 mins typically)
+5. Add lunch break (1 hour) around 1 PM
+6. Add short breaks (15-30 mins) after every 2-3 attractions
+7. Show only entrance fees (no transport costs)
+8. Budget distribution: 80% attractions, 20% miscellaneous
 
-OPTIMIZATION REQUIREMENTS:
-- Schedule based on landmark popularity and ratings
-- Ensure full day utilization (8 AM to 7 PM)
-- Dynamic visit durations based on popularity scores
-- Include travel time between locations within clusters
-- Budget distribution: 35% transport, 65% attractions
+TIME MANAGEMENT GUIDELINES:
+- Morning (8 AM - 12 PM): 4 hours for 2-3 attractions
+- Afternoon (1 PM - 5 PM): 4 hours for 2-3 attractions (after lunch)
+- Evening (5 PM - 8 PM): 3 hours for 1-2 attractions
+
+For ${budgetLevel} budget level:
+${budgetLevel === 'low' ? '- Prioritize free/low-cost attractions (₹0-150 entry)' : ''}
+${budgetLevel === 'low' ? '- Suggest street food and budget dining' : ''}
+${budgetLevel === 'medium' ? '- Balance popular attractions (₹50-500 entry)' : ''}
+${budgetLevel === 'medium' ? '- Include mix of experiences' : ''}
+${budgetLevel === 'high' ? '- Include premium attractions (₹100-1000+ entry)' : ''}
+${budgetLevel === 'high' ? '- Suggest quality experiences and dining' : ''}
 
 Return ONLY valid JSON in this exact format:
 {
@@ -449,24 +575,47 @@ Return ONLY valid JSON in this exact format:
             "costType": "entry",
             "popularity": 85,
             "rating": "4.2",
-            "tips": "Best time to visit, why it's popular"
+            "tips": "Entry fee: ₹250. Best time to visit is morning."
+          },
+          {
+            "time": "10:30 AM",
+            "activity": "Travel to [Next Landmark]",
+            "location": "En route",
+            "duration": "45 mins",
+            "distance": "12 km",
+            "cost": 0,
+            "costType": "transport",
+            "tips": "Distance: 12 km • Travel time: 45 mins"
+          },
+          {
+            "time": "12:00 PM",
+            "activity": "Lunch Break",
+            "location": "Local restaurant",
+            "duration": "1 hour",
+            "cost": 0,
+            "costType": "meal",
+            "tips": "Try local cuisine"
           }
-        ]
+        ],
+        "unusedTime": "2 hours" // Only include if not all landmarks could be scheduled
       }
     ]
   },
   "budgetBreakdown": {
-    "transport": ${Math.floor(budget * 0.35)},
-    "attractions": ${Math.floor(budget * 0.65)},
+    "level": "${budgetLevel}",
+    "range": "${budgetConfig.label}",
+    "attractions": ${Math.floor(budget * 0.8)},
+    "miscellaneous": ${Math.floor(budget * 0.2)},
     "total": ${budget},
-    "dailyAverage": ${Math.floor(budget / numberOfDays)}
+    "dailyAverage": ${Math.floor(budget / numberOfDays)},
+    "note": "Transport costs vary - use local apps for pricing"
   },
-  "tips": [
-    "ML-optimized travel tips based on clustering analysis"
-  ]
-}
-
-Use realistic Indian prices and ensure full day coverage.`;
+  "timeUtilization": {
+    "totalAvailableHours": ${numberOfDays * 12},
+    "scheduledHours": 0, // Will be calculated
+    "utilizationPercentage": 0 // Will be calculated
+  }
+}`;
 
   try {
     const model = genAI.getGenerativeModel({ 
@@ -477,7 +626,7 @@ Use realistic Indian prices and ensure full day coverage.`;
       }
     });
     
-    logger.info("Generating enhanced AI itinerary with ML insights...");
+    logger.info(`Generating ${budgetLevel} budget itinerary with enhanced time utilization...`);
     const result = await model.generateContent(prompt);
     const text = result.response.text().replace(/```json|```/g, "").trim();
     
@@ -488,10 +637,39 @@ Use realistic Indian prices and ensure full day coverage.`;
       const jsonStr = text.substring(jsonStart, jsonEnd);
       const parsed = JSON.parse(jsonStr);
       
-      if (parsed.itinerary && parsed.itinerary.days && Array.isArray(parsed.itinerary.days)) {
-        logger.info("Enhanced AI itinerary generated successfully");
-        return parsed;
-      }
+      // Validate all landmarks were included
+      const allScheduledLandmarks = new Set();
+      parsed.itinerary.days.forEach(day => {
+        day.schedule.forEach(activity => {
+          if (activity.activity?.includes('Visit')) {
+            const landmarkName = activity.activity.replace('Visit ', '').trim();
+            allScheduledLandmarks.add(landmarkName);
+          }
+        });
+      });
+
+      // Calculate time utilization metrics
+      let scheduledHours = 0;
+      parsed.itinerary.days.forEach(day => {
+        day.schedule.forEach(activity => {
+          if (activity.duration) {
+            const hoursMatch = activity.duration.match(/(\d+)\s*hours?/);
+            const minsMatch = activity.duration.match(/(\d+)\s*mins?/);
+            const hours = hoursMatch ? parseInt(hoursMatch[1]) : 0;
+            const mins = minsMatch ? parseInt(minsMatch[1]) : 0;
+            scheduledHours += hours + (mins / 60);
+          }
+        });
+      });
+
+      parsed.timeUtilization = {
+        totalAvailableHours: numberOfDays * 12,
+        scheduledHours: scheduledHours,
+        utilizationPercentage: Math.round((scheduledHours / (numberOfDays * 12)) * 100)
+      };
+
+      logger.info(`Enhanced ${budgetLevel} budget itinerary generated with ${parsed.timeUtilization.utilizationPercentage}% time utilization`);
+      return parsed;
     }
     
     throw new Error("Invalid JSON structure from AI");
@@ -500,6 +678,7 @@ Use realistic Indian prices and ensure full day coverage.`;
     return null;
   }
 };
+
 
 // Main controller
 // Main controller - Modified to include optimized landmarks in response
@@ -522,16 +701,17 @@ const generateItinerary = async (req, res) => {
       });
     }
 
-    logger.info(`Generating enhanced itinerary: ${landmarks.length} landmarks, ${tripDetails.numberOfDays} days, budget ₹${tripDetails.budget}`);
+    const budgetLevel = getBudgetLevel(tripDetails.budget);
+    logger.info(`Generating ${budgetLevel} budget itinerary: ${landmarks.length} landmarks, ${tripDetails.numberOfDays} days, budget ₹${tripDetails.budget}`);
 
-    // Get optimal landmarks calculation
+    // Get optimal landmarks calculation with budget consideration
     const landmarkMetrics = calculateOptimalLandmarksPerDay(
       tripDetails.budget, 
       tripDetails.numberOfDays, 
       landmarks
     );
 
-    // Fetch and enhance landmarks with popularity scoring
+    // Fetch and enhance landmarks with popularity scoring and budget consideration
     const enhancedLandmarks = await fetchEnhancedLandmarks(
       tripDetails.location, 
       landmarks.filter(l => l.name && l.latitude && l.longitude),
@@ -556,62 +736,63 @@ const generateItinerary = async (req, res) => {
       clusters = fallbackClustering(enhancedLandmarks, tripDetails.numberOfDays);
     }
 
-    // NEW: Create optimized landmarks array from all clusters
+    // Create optimized landmarks array with travel times
     const optimizedLandmarks = [];
     const optimizedLandmarksByDay = {};
     
-    clusters.clusters.forEach(cluster => {
-      // Optimize route within each cluster
+    for (const cluster of clusters.clusters) {
       const optimizedClusterLandmarks = optimizeClusterRoute(cluster.landmarks);
-      
-      // Add to overall optimized landmarks array
       optimizedLandmarks.push(...optimizedClusterLandmarks);
       
-      // Group by day for easier access
-      optimizedLandmarksByDay[`day${cluster.day}`] = optimizedClusterLandmarks.map((landmark, index) => ({
-        ...landmark,
-        dayOrder: index + 1,
-        clusterDay: cluster.day,
-        estimatedTravelTime: index > 0 ? calculateTravelTime(
-          optimizedClusterLandmarks[index - 1],
-          landmark
-        ) : 0
-      }));
-    });
+      // Calculate travel times between landmarks
+      const landmarksWithTravelTime = [];
+      for (let i = 0; i < optimizedClusterLandmarks.length; i++) {
+        const landmark = optimizedClusterLandmarks[i];
+        let travelTime = null;
+        
+        if (i > 0) {
+          travelTime = await calculateTravelTime(
+            optimizedClusterLandmarks[i - 1],
+            landmark
+          );
+        }
+        
+        landmarksWithTravelTime.push({
+          ...landmark,
+          dayOrder: i + 1,
+          clusterDay: cluster.day,
+          travelTime: travelTime
+        });
+      }
+      
+      optimizedLandmarksByDay[`day${cluster.day}`] = landmarksWithTravelTime;
+    }
 
-    // Generate enhanced itinerary
+    // Generate enhanced itinerary with real travel times
     const aiItinerary = await generateEnhancedAIItinerary(
       clusters.clusters, 
       tripDetails, 
       { silhouette_score: clusters.silhouette_score }
     );
     
-    const finalItinerary = aiItinerary || createEnhancedItinerary(
+    const finalItinerary = aiItinerary || await createEnhancedItinerary(
       clusters.clusters, 
       tripDetails.budget, 
       tripDetails
     );
 
-    // Calculate comprehensive metrics
-    let totalDistance = 0;
-    clusters.clusters.forEach(cluster => {
-      for (let i = 1; i < cluster.landmarks.length; i++) {
-        totalDistance += calculateDistance(
-          cluster.landmarks[i-1].latitude,
-          cluster.landmarks[i-1].longitude,
-          cluster.landmarks[i].latitude,
-          cluster.landmarks[i].longitude
-        );
-      }
-    });
-
     const response = {
       success: true,
       data: {
         ...finalItinerary,
-        // NEW: Add optimized landmarks to response
         optimizedLandmarks: optimizedLandmarks,
         optimizedLandmarksByDay: optimizedLandmarksByDay,
+        budgetAnalysis: {
+          level: budgetLevel,
+          range: BUDGET_RANGES[budgetLevel].label,
+          dailyLimit: BUDGET_RANGES[budgetLevel].dailyLimit,
+          recommendations: getBudgetRecommendations(budgetLevel)
+        },
         landmarkSummary: {
           totalLandmarks: optimizedLandmarks.length,
           originalLandmarks: landmarks.length,
@@ -628,7 +809,8 @@ const generateItinerary = async (req, res) => {
           clusteringMethod: "K-means",
           clusteringQuality: (clusters.silhouette_score || 0.5).toFixed(3),
           landmarkOptimization: landmarkMetrics,
-          popularityBasedSelection: true,
+          budgetOptimized: true,
+          travelTimeOptimized: true,
           clusters: clusters.clusters.map(c => ({
             day: c.day,
             landmarkCount: c.landmarks.length,
@@ -636,25 +818,22 @@ const generateItinerary = async (req, res) => {
             avgScore: (c.landmarks.reduce((sum, l) => sum + (l.score || 50), 0) / c.landmarks.length).toFixed(1)
           }))
         },
-        routeOptimization: {
-          totalDistance: +totalDistance.toFixed(2),
-          averageDistancePerDay: +(totalDistance / tripDetails.numberOfDays).toFixed(2),
-          optimizationMethod: "Nearest neighbor within ML clusters"
-        },
         tripSummary: {
           location: tripDetails.location,
           numberOfDays: tripDetails.numberOfDays,
           budget: `₹${tripDetails.budget}`,
+          budgetLevel: budgetLevel,
           totalLandmarks: enhancedLandmarks.length,
           avgLandmarksPerDay: Math.round(enhancedLandmarks.length / tripDetails.numberOfDays),
           highPopularityLandmarks: enhancedLandmarks.filter(l => (l.popularity || 50) > 70).length,
           generatedAt: new Date().toISOString(),
-          mlEnhanced: true
+          mlEnhanced: true,
+          realTravelTimes: true
         },
       },
     };
 
-    logger.info("Enhanced ML-based itinerary generated successfully");
+    logger.info(`Enhanced ${budgetLevel} budget itinerary generated successfully`);
     res.json(response);
     
   } catch (err) {
@@ -666,26 +845,125 @@ const generateItinerary = async (req, res) => {
     });
   }
 };
+const BUDGET_RANGES = {
+  low: { min: 0, max: 15000, label: 'Low (₹5,000 - ₹15,000)', dailyLimit: 2000 },
+  medium: { min: 15001, max: 40000, label: 'Medium (₹15,001 - ₹40,000)', dailyLimit: 5000 },
+  high: { min: 40001, max: Infinity, label: 'High (₹40,001+)', dailyLimit: 10000 }
+};
+
+// Function to determine budget level
+const getBudgetLevel = (budget) => {
+  if (budget <= BUDGET_RANGES.low.max) return 'low';
+  if (budget <= BUDGET_RANGES.medium.max) return 'medium';
+  return 'high';
+};
+
+// Function to get real travel time using Google Maps API or fallback calculation
+const getRealTravelTime = async (fromLat, fromLng, toLat, toLng) => {
+  try {
+    // If you have Google Maps API key, use this
+    const googleMapsApiKey = process.env.GOOGLE_MAPS_API_KEY;
+    
+    if (googleMapsApiKey) {
+      const url = `https://maps.googleapis.com/maps/api/distancematrix/json?units=metric&origins=${fromLat},${fromLng}&destinations=${toLat},${toLng}&key=${googleMapsApiKey}&mode=driving`;
+      
+      const response = await axios.get(url, { timeout: 5000 });
+      
+      if (response.data.status === 'OK' && 
+          response.data.rows[0].elements[0].status === 'OK') {
+        const element = response.data.rows[0].elements[0];
+        return {
+          distance: element.distance.text,
+          duration: element.duration.text,
+          distanceValue: element.distance.value, // in meters
+          durationValue: element.duration.value, // in seconds
+          source: 'google_maps'
+        };
+      }
+    }
+  } catch (error) {
+    logger.warn('Google Maps API failed, using fallback calculation:', error.message);
+  }
+  
+  // Fallback: Enhanced calculation based on road distance estimation
+  const straightDistance = calculateDistance(fromLat, fromLng, toLat, toLng);
+  
+  // Apply road distance multiplier (roads are typically 1.3-1.8x longer than straight line)
+  const roadMultiplier = 1.4; // Conservative estimate
+  const estimatedRoadDistance = straightDistance * roadMultiplier;
+  
+  // Calculate time based on Indian city traffic conditions
+  let avgSpeed;
+  if (estimatedRoadDistance < 5) {
+    avgSpeed = 20; // Heavy city traffic
+  } else if (estimatedRoadDistance < 15) {
+    avgSpeed = 30; // City traffic
+  } else if (estimatedRoadDistance < 50) {
+    avgSpeed = 45; // Suburban/highway
+  } else {
+    avgSpeed = 60; // Highway
+  }
+  
+  const timeInHours = estimatedRoadDistance / avgSpeed;
+  const timeInMinutes = Math.round(timeInHours * 60);
+  
+  return {
+    distance: `${estimatedRoadDistance.toFixed(1)} km`,
+    duration: timeInMinutes < 60 
+      ? `${timeInMinutes} mins` 
+      : `${Math.floor(timeInMinutes / 60)}h ${timeInMinutes % 60}m`,
+    distanceValue: estimatedRoadDistance * 1000, // convert to meters
+    durationValue: timeInMinutes * 60, // convert to seconds
+    source: 'estimated'
+  };
+};
+
+const getBudgetRecommendations = (budgetLevel) => {
+  const recommendations = {
+    low: [
+      "Focus on free attractions like parks, temples, and local markets",
+      "Use public transport or walk when possible",
+      "Try street food and local eateries",
+      "Look for group discounts and student rates",
+      "Visit during off-peak hours for better deals"
+    ],
+    medium: [
+      "Mix of popular attractions and hidden gems",
+      "Use app-based cabs for convenience",
+      "Try local restaurants and cafes",
+      "Book combo tickets for multiple attractions",
+      "Consider guided tours for better experiences"
+    ],
+    high: [
+      "Premium attractions and experiences",
+      "Comfortable transportation options",
+      "Fine dining and specialty restaurants",
+      "VIP access and skip-the-line tickets",
+      "Photography tours and unique experiences"
+    ]
+  };
+  
+  return recommendations[budgetLevel] || recommendations.medium;
+};
 
 // Helper function to calculate estimated travel time between landmarks
-const calculateTravelTime = (fromLandmark, toLandmark) => {
-  const distance = calculateDistance(
+const calculateTravelTime = async (fromLandmark, toLandmark) => {
+  const travelInfo = await getRealTravelTime(
     fromLandmark.latitude,
     fromLandmark.longitude,
     toLandmark.latitude,
     toLandmark.longitude
   );
   
-  // Estimate travel time based on distance (assuming average speed of 30 km/h in city)
-  const timeInHours = distance / 30;
-  const timeInMinutes = Math.round(timeInHours * 60);
-  
   return {
-    distanceKm: +distance.toFixed(2),
-    estimatedMinutes: timeInMinutes,
-    estimatedHours: +(timeInHours).toFixed(2)
+    distance: travelInfo.distance,
+    duration: travelInfo.duration,
+    distanceKm: travelInfo.distanceValue / 1000,
+    durationMinutes: Math.round(travelInfo.durationValue / 60),
+    source: travelInfo.source
   };
 };
+
 
 module.exports = {
   generateItinerary,

@@ -10,7 +10,7 @@ router.get('/search', getLandmarksWithImages);
 router.post('/generate-itinerary', generateItinerary);
 // In your routes file
 // router.post('/generate-itinerary', async (req, res) => {
-//   await itineraryController.generateItinerary(req, res);
+//   await generateItinerary(req, res);
 // });
 router.post('/weather-prediction', getWeatherPrediction);
 router.post('/weather-itinerary', getWeatherForItinerary);

@@ -48,11 +48,20 @@ const LoadingAnimation = () => {
   );
 };
 
+const getBudgetNumericValue = (budgetLevel) => {
+  const values = {
+    low: 10000,    // Mid-point of low range
+    medium: 27500, // Mid-point of medium range  
+    high: 50000    // Representative high value
+  };
+  return values[budgetLevel] || values.medium;
+};
+
 function SearchResultsPage() {
   const [landmarks, setLandmarks] = useState([]);
   const [selectedLandmarks, setSelectedLandmarks] = useState([]);
   const [numberOfDays, setNumberOfDays] = useState(3);
-  const [budget, setBudget] = useState(25000); // Changed to INR equivalent (500 USD ≈ ₹25,000)
+  const [budget, setBudget] = useState('medium');// Changed to INR equivalent (500 USD ≈ ₹25,000)
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const location = useLocation();
@@ -63,10 +72,15 @@ function SearchResultsPage() {
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://hac-webdev-2.onrender.com/api';
 
   // Helper function to format currency in INR
-  const formatINR = (amount) => {
-    if (typeof amount !== 'number') return '₹0';
-    return `₹${amount.toLocaleString('en-IN')}`;
+const getBudgetRangeLabel = (budgetLevel) => {
+  const ranges = {
+    low: '₹5,000 - ₹15,000',
+    medium: '₹15,001 - ₹40,000', 
+    high: '₹40,001+'
   };
+  return ranges[budgetLevel] || ranges.medium;
+};
+
 
 useEffect(() => {
     const fetchLandmarks = async () => {
@@ -109,34 +123,36 @@ useEffect(() => {
     });
   };
 
-  const handleDevisePlan = () => {
-    const selectedData = landmarks
-      .filter(l => selectedLandmarks.includes(l.name))
-      .map(landmark => ({
-        _id: landmark._id || `landmark-${landmark.name.toLowerCase().replace(/\s+/g, '-')}`,
-        name: landmark.name,
-        description: landmark.description,
-        latitude: landmark.latitude,
-        longitude: landmark.longitude,
-        imageUrl: landmark.imageUrl
-      }));
+const handleDevisePlan = () => {
+  const selectedData = landmarks
+    .filter(l => selectedLandmarks.includes(l.name))
+    .map(landmark => ({
+      _id: landmark._id || `landmark-${landmark.name.toLowerCase().replace(/\s+/g, '-')}`,
+      name: landmark.name,
+      description: landmark.description,
+      latitude: landmark.latitude,
+      longitude: landmark.longitude,
+      imageUrl: landmark.imageUrl
+    }));
 
-    console.log('Navigating with selected landmarks:', selectedData);
-    
-    if (selectedData.length > 0) {
-      navigate('/devise-plan', { 
-        state: { 
-          selectedLandmarks: selectedData,
-          tripDetails: {
-            location: searchLocation,
-            radius: searchRadius,
-            numberOfDays,
-            budget
-          }
-        } 
-      });
-    }
-  };
+  console.log('Navigating with selected landmarks:', selectedData);
+  
+  if (selectedData.length > 0) {
+    navigate('/devise-plan', { 
+      state: { 
+        selectedLandmarks: selectedData,
+        tripDetails: {
+          location: searchLocation,
+          radius: searchRadius,
+          numberOfDays,
+          budgetLevel: budget, // Changed from budget to budgetLevel
+          budget: getBudgetNumericValue(budget) // Add numeric value for backend compatibility
+        }
+      } 
+    });
+  }
+};
+
 
   return (
     <div className="relative min-h-screen bg-white dark:bg-gray-900">
@@ -176,19 +192,22 @@ useEffect(() => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Budget (INR)
+                Budget Range
               </label>
-              <input
-                type="number"
+              <select
                 value={budget}
-                onChange={(e) => setBudget(parseInt(e.target.value))}
-                min="5000"
-                max="250000"
-                step="2500"
+                onChange={(e) => setBudget(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                placeholder="Enter budget in INR"
-              />
-             
+              >
+                <option value="low">Low </option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {budget === 'low' && 'Budget-friendly attractions, street food, public transport'}
+                {budget === 'medium' && 'Mix of popular attractions and local experiences'}
+                {budget === 'high' && 'Premium attractions, comfortable experiences, quality dining'}
+              </p>
             </div>
           </div>
         </div>
@@ -232,7 +251,7 @@ useEffect(() => {
               Selected landmarks: {selectedLandmarks.length}
             </div>
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              {numberOfDays} days • {formatINR(budget)} budget
+              {numberOfDays} days • {getBudgetRangeLabel(budget)} budget
             </div>
           </div>
           <button
