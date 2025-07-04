@@ -13,15 +13,24 @@ const HomePage = () => {
   const navigate = useNavigate();
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://hac-webdev-2.onrender.com/api';
   // Fetch landmarks from the database
-  useEffect(() => {
-    axios.get(`${API_BASE_URL}/landmarks`)
-      .then((response) => {
-        setLandmarks(response.data);  // Assume landmarks are returned in an array
-      })
-      .catch((error) => {
-        console.error("Error fetching landmarks:", error);
-      });
-  }, []);
+useEffect(() => {
+  axios.get(`${API_BASE_URL}/landmarks`)
+    .then((response) => {
+      const data = response.data;
+      if (Array.isArray(data)) {
+        setLandmarks(data);
+      } else if (Array.isArray(data.landmarks)) {
+        setLandmarks(data.landmarks);
+      } else {
+        console.error("Unexpected landmarks data format:", data);
+        setLandmarks([]);
+      }
+    })
+    .catch((error) => {
+      console.error("Error fetching landmarks:", error);
+    });
+}, []);
+
 
   const heroImages = [
     {
