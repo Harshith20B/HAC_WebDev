@@ -1,10 +1,9 @@
-//travelo\Scripts\activate
-
 const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const path = require('path');
+
 const authRoutes = require('./routes/authRoutes');
 const landmarkRoutes = require('./routes/landmarkRoutes');
 const exploreRoutes = require('./routes/exploreRoutes');
@@ -16,30 +15,25 @@ const postsRoutes = require('./routes/postsRoutes');
 dotenv.config();
 const app = express();
 
-// Configure CORS with specific options
-const corsOptions = {
-  origin: [
-    'https://hac-web-dev.vercel.app',
-    'http://localhost:3000',  // For local development
-  ],
+// ======== ALLOW ALL ORIGINS WITH CREDENTIALS =========
+app.use(cors({
+  origin: (origin, callback) => {
+    callback(null, origin || '*');
+  },
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,  // Enable credentials (authorization headers)
-  optionsSuccessStatus: 200
-};
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
-// Apply CORS configuration
-app.use(cors(corsOptions));
+app.options('*', cors());
 
-// Pre-flight requests
-app.options('*', cors(corsOptions));
-
-app.use(express.json({ limit: '50mb' })); // Increased limit for handling media
+// Increase JSON body limit for media
+app.use(express.json({ limit: '50mb' }));
 
 // Add security headers middleware
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Origin', req.headers.origin);
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
   res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
   res.header(
     'Access-Control-Allow-Headers',
@@ -55,7 +49,7 @@ app.use('/api/explore', exploreRoutes);
 app.use('/api/landmarks', landmarkRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/auth', authRoutes);
-app.use('/api/social', postsRoutes); // Add the new routes with a social prefix
+app.use('/api/social', postsRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
