@@ -1,198 +1,70 @@
-# TravelSphere: AI-Powered Itinerary and Landmark Discovery
+# Getting Started with Create React App
 
-TravelSphere is a smart, AI-driven travel planning web application designed to simplify and enhance trip planning. It leverages advanced AI (Gemini API), real-time data integrations, and a modern tech stack to generate personalized itineraries, suggest nearby landmarks, provide weather forecasts, and enable social travel planning.
+This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
----
+## Available Scripts
 
-## Table of Contents
+In the project directory, you can run:
 
-- [Features](#features)
-- [Architecture](#architecture)
-- [Tech Stack](#tech-stack)
-- [AI Modules](#ai-modules)
-- [User Flow](#user-flow)
-- [Screenshots](#screenshots)
-- [How It Works](#how-it-works)
-- [Installation](#installation)
-- [Future Scope](#future-scope)
-- [Contributors](#contributors)
-- [License](#license)
+### `npm start`
 
----
+Runs the app in the development mode.\
+Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
 
-## Features
+The page will reload when you make changes.\
+You may also see any lint errors in the console.
 
-✅ AI-powered itinerary generation with Gemini API  
-✅ Landmark discovery with images and descriptions  
-✅ Real-time weather forecast integration  
-✅ Optimized route planning (K-Means clustering, nearest-neighbor)  
-✅ User authentication and profile management  
-✅ Social features to share travel posts/vlogs and connect with other travelers  
-✅ Collaborative trip planning with invitations and community engagement  
+### `npm test`
 
----
+Launches the test runner in the interactive watch mode.\
+See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
 
-## Architecture
+### `npm run build`
 
-TravelSphere follows a three-tier architecture:
+Builds the app for production to the `build` folder.\
+It correctly bundles React in production mode and optimizes the build for the best performance.
 
-- **Frontend (React):** Dynamic UI with client-side routing and state management.
-- **Backend (Node.js + Express):** REST API for business logic and data management.
-- **Database (MongoDB):** NoSQL store for users, posts, itineraries, and connections.
+The build is minified and the filenames include the hashes.\
+Your app is ready to be deployed!
 
-![Architecture Diagram](docs/Architecture.jpg)
+See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
 
----
+### `npm run eject`
 
-## Tech Stack
+**Note: this is a one-way operation. Once you `eject`, you can't go back!**
 
-- **Frontend:** React.js
-- **Backend:** Node.js, Express.js
-- **Database:** MongoDB
-- **AI/ML:** Google Gemini API, Prophet for weather forecasting, K-Means Clustering
-- **APIs/Services:**
-  - Google Places API
-  - OpenWeatherMap API
-  - Cloudinary
-  - Pexels API
-  - Open-Meteo API
+If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
 
----
+Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
 
-## AI Modules
+You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
 
-### Landmark Discovery
-- Uses Gemini API for location-based landmark suggestions.
-- Fetches images via Pexels API.
-- Enriches landmarks with geolocation metadata and descriptions.
+## Learn More
 
-### Itinerary Generation
-- Clusters landmarks day-wise using K-Means.
-- Route optimization with nearest-neighbor algorithm.
-- Structured itineraries via Gemini-based natural language generation.
+You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
 
-### Weather Forecasting
-- Historical data from Open-Meteo.
-- Forecasts generated using Prophet for the next 90 days.
-- Helps users plan weather-sensitive activities.
+To learn React, check out the [React documentation](https://reactjs.org/).
 
----
+### Code Splitting
 
-## User Flow
+This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
 
-TravelSphere offers a clear and intuitive user journey:
+### Analyzing the Bundle Size
 
-- **Home Page:** Central entry point for navigation.
-  - Landmark Search
-  - Posts Feed
-  - Travel Plans
+This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
 
-### Landmark Search Module
-- Enter a location or use GPS.
-- Get landmark suggestions with images and descriptions.
-- Add selected landmarks to your itinerary.
-- Assign visits to specific days.
-- View real-time weather forecasts for destinations.
-- Generate an optimized, day-wise itinerary.
+### Making a Progressive Web App
 
-### Posts Feed Module
-- View posts and travel vlogs shared by other travelers.
-- Create and upload your own posts with text and images.
-- Like and comment to engage with the community.
+This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
 
-### Travel Plans Module
-- Create new travel plans with trip details.
-- Invite friends via email or make plans public.
-- Browse existing plans and send join requests.
-- Get notifications for requests and approvals.
-- Collaborate on group travel itineraries.
+### Advanced Configuration
 
----
+This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
 
-## Screenshots
+### Deployment
 
-Below are key pages of the TravelSphere app:
+This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
 
-### Home Page
-![Home Page](docs/Home_Page.jpg)
+### `npm run build` fails to minify
 
-### User Registration and Profile Editing
-![Edit Profile](docs/Edit_Profile.jpg)
-
-### Landmark Selection
-![Landmark Selection](docs/Landmarks_Selection.jpg)
-
-### Itinerary Generation (Step 1)
-![Itinerary Generation 1](docs/itinerary_generation1.jpg)
-
-### Itinerary Generation (Step 2)
-![Itinerary Generation 2](docs/Itinerary_generation2.jpg)
-
-### Weather Forecast
-![Weather Forecast](docs/Weather_Forecast.jpg)
-
-### Connect Feature (Join Travel Plans)
-![Connect Feature](docs/Connect.jpg)
-
-### User Flow Diagram
-![User Flow Diagram](docs/User_Flow.jpg)
-
-### Add Post / Travel Vlog
-![Add Post](docs/AddPost.jpg)
-
-### Posts Feed
-![Posts Feed](docs/Posts.jpg)
-
----
-
-## How It Works
-
-1️⃣ **Register/Login**  
-   - Secure authentication with JWT.  
-   - Edit and manage your profile.  
-
-2️⃣ **Search Landmarks**  
-   - Enter destination or use GPS.  
-   - View AI-generated landmarks with images and descriptions.  
-   - Add to your itinerary.
-
-3️⃣ **Plan Itinerary**  
-   - Cluster landmarks into day-wise trips.  
-   - Optimize routes automatically.  
-   - Get clear day-by-day plans with costs and travel times.
-
-4️⃣ **Weather Integration**  
-   - View detailed forecasts for trip destinations.  
-   - Plan weather-sensitive activities confidently.
-
-5️⃣ **Connect Feature**  
-   - Create travel plans.  
-   - Invite friends via email or make public plans others can join.  
-   - Browse and join community travel plans.
-
-6️⃣ **Posts and Vlogs**  
-   - Share travel stories and photos.  
-   - Browse other users’ posts for inspiration.  
-   - Engage with the community via likes and comments.
-
----
-
-## Installation
-
-### Prerequisites
-- Node.js
-- MongoDB
-
-### Steps
-
-```bash
-# Clone the repository
-git clone https://github.com/Harshith20B/HAC_WebDev.git
-cd HAC_WebDev
-
-# Install backend dependencies
-npm install
-
-# Install frontend dependencies
-cd client
-npm install
+This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)

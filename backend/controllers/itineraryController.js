@@ -679,8 +679,6 @@ Return ONLY valid JSON in this exact format:
   }
 };
 
-
-// Main controller
 // Main controller - Modified to include optimized landmarks in response
 const generateItinerary = async (req, res) => {
   try {
