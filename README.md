@@ -187,8 +187,8 @@ Below are key pages of the TravelSphere app:
 
 ```bash
 # Clone the repository
-git clone https://github.com/Harshith20B/HAC_WebDev.git
-cd HAC_WebDev
+git clone https://github.com/Harshith20B/TravelSphere.git
+cd TravelSphere
 
 # Install backend dependencies
 npm install
