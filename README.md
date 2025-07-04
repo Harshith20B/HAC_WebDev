@@ -107,6 +107,9 @@ TravelSphere offers a clear and intuitive user journey:
 - Get notifications for requests and approvals.
 - Collaborate on group travel itineraries.
 
+### User Flow Diagram
+![User Flow Diagram](docs/User_Flow.jpg)
+
 ---
 
 ## Screenshots
@@ -133,9 +136,6 @@ Below are key pages of the TravelSphere app:
 
 ### Connect Feature (Join Travel Plans)
 ![Connect Feature](docs/Connect.jpg)
-
-### User Flow Diagram
-![User Flow Diagram](docs/User_Flow.jpg)
 
 ### Add Post / Travel Vlog
 ![Add Post](docs/AddPost.jpg)
