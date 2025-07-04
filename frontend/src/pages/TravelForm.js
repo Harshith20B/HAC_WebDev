@@ -15,7 +15,7 @@ const TravelForm = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://hac-webdev-2.onrender.com/api';
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
   // Get token from localStorage
   const getAuthToken = () => {

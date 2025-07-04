@@ -3,7 +3,7 @@ import { MessageCircle, Heart, Send, Search, Plus, MapPin } from 'lucide-react';
 import PostForm from './PostForm';
 
 export default function PostsPage({ darkMode, setDarkMode }) {
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://hac-webdev-2.onrender.com/api';
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
   // State for posts data
   const [posts, setPosts] = useState([]);

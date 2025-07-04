@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { X, Plus, Image, Film, MapPin, Upload, FileImage, FileVideo } from 'lucide-react';
 
 const PostForm = ({ onClose, onPostCreated, darkMode }) => {
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://hac-webdev-2.onrender.com/api';
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
   const [newPost, setNewPost] = useState({
     title: '',
     content: '',
