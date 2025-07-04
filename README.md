@@ -8,6 +8,7 @@ TravelSphere is a smart, AI-driven travel planning web application designed to s
 
 - [Features](#features)
 - [Architecture](#architecture)
+- [User Flow](#User-Flow)
 - [Tech Stack](#tech-stack)
 - [AI Modules](#ai-modules)
 - [Screenshots](#screenshots)
@@ -41,6 +42,72 @@ TravelSphere follows a three-tier architecture:
 ![Architecture Diagram](docs/architecture_diagram.png) *(Replace with your actual diagram)*
 
 ---
+
+## User Flow Diagram
+
+The user flow diagram illustrates how a user navigates through the TravelSphere web application. It maps out the main steps and decision points across all major features.
+
+### Main Flows
+
+- **Home Page:** The central entry point for new and returning users.
+  - Navigate to:
+    - Landmark Search
+    - Posts Feed
+    - Travel Plans
+
+---
+
+### Landmark Search Module
+- User enters a location or uses GPS.
+- System returns a list of relevant landmarks with images and descriptions.
+- User selects landmarks to add to their itinerary.
+- Itinerary management is interactive and day-wise:
+  - Assign landmarks to specific days.
+  - Adjust visit sequence.
+  - Include travel details (transport mode, distance, time).
+  - View real-time weather for destinations.
+- Generate an optimized itinerary.
+
+---
+
+### Posts Feed Module
+- View posts shared by other travelers (text, photos, experiences).
+- Create and upload your own posts:
+  - Compose text.
+  - Attach images.
+  - Publish to the community.
+- Engage by liking or commenting on posts.
+
+---
+
+### Travel Plans Module
+- Create a new travel plan:
+  - Enter destination, duration, theme.
+  - Add participants via email invitations or make the plan public.
+- Browse existing travel plans:
+  - Filter by budget, duration, popularity.
+  - Send join requests.
+- Receive notifications when requests are accepted or rejected.
+- Coordinate group travel easily.
+
+---
+
+### Key Decision Points
+- Add or skip landmarks.
+- Edit or delete plans.
+- Make plans public or private.
+- Join existing plans or create new ones.
+
+---
+
+### User Feedback and Confirmation
+- Confirmation screens after saving itineraries.
+- Success messages after publishing posts.
+- Notifications after joining travel plans.
+
+---
+
+This structured user flow ensures an intuitive, low-friction experience where travelers can plan, customize, share, and collaborate on trips with ease.
 
 ## Tech Stack
 
@@ -78,9 +145,8 @@ TravelSphere follows a three-tier architecture:
 
 ## Screenshots
 
-*(Add your actual screenshots here; these titles match your report)*
-
 - Home Page
+![Home Page](docs/Home_Page.jpg)
 - Edit Profile
 - Fetch Nearby Landmarks
 - Plan Generation
