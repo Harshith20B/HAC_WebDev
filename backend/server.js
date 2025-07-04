@@ -1,3 +1,8 @@
+/**
+ * Express server for TravelSphere backend
+ * Clean CORS config to allow all origins dynamically with credentials
+ */
+
 const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
@@ -13,36 +18,33 @@ const userRoutes = require('./routes/userRoutes');
 const postsRoutes = require('./routes/postsRoutes');
 
 dotenv.config();
+
 const app = express();
 
-// ======== ALLOW ALL ORIGINS WITH CREDENTIALS =========
+/**
+ * ✅ Proper CORS setup
+ * Allows ANY origin dynamically while supporting credentials
+ * Required because Vercel preview URLs change on each deploy
+ */
 app.use(cors({
   origin: (origin, callback) => {
-    callback(null, origin || '*');
+    // Dynamically allow any origin (return it back)
+    callback(null, origin);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Handle preflight requests
 app.options('*', cors());
 
-// Increase JSON body limit for media
+// Body parser
 app.use(express.json({ limit: '50mb' }));
 
-// Add security headers middleware
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-  res.header(
-    'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept, Authorization'
-  );
-  next();
-});
-
-// API Routes
+/**
+ * ✅ ROUTES
+ */
 app.use('/api', productRoutes);
 app.use('/api/travelplans', travelPlanRoutes);
 app.use('/api/explore', exploreRoutes);
@@ -51,7 +53,9 @@ app.use('/api/user', userRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/social', postsRoutes);
 
-// Error handling middleware
+/**
+ * ✅ ERROR HANDLING
+ */
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ 
@@ -60,14 +64,19 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Serve static files and handle frontend routes
+/**
+ * ✅ SERVE FRONTEND (Optional)
+ * If you're also deploying static frontend from backend
+ */
 const buildPath = path.join(__dirname, 'build');
 app.use(express.static(buildPath));
 app.get('*', (req, res) => {
   res.sendFile(path.join(buildPath, 'index.html'));
 });
 
-// MongoDB Connection and Server Start
+/**
+ * ✅ DATABASE CONNECTION AND SERVER START
+ */
 const PORT = process.env.PORT || 5000;
 mongoose
   .connect(process.env.MONGO_URI, {
@@ -76,10 +85,12 @@ mongoose
     serverSelectionTimeoutMS: 5000,
     socketTimeoutMS: 45000,
   })
-  .then(() =>
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
-  )
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+    });
+  })
   .catch((error) => {
-    console.error('MongoDB connection error:', error);
+    console.error('❌ MongoDB connection error:', error);
     process.exit(1);
   });
