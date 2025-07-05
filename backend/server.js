@@ -28,13 +28,17 @@ const app = express();
  */
 app.use(cors({
   origin: (origin, callback) => {
-    // Dynamically allow any origin (return it back)
+    // Dynamically allow any origin if present
+    if (!origin) return callback(null, true);
     callback(null, origin);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+app.options('*', cors());
+
 
 // Handle preflight requests
 app.options('*', cors());
